@@ -3,6 +3,7 @@
 ## Tenant boundary and capabilities
 
 - Derive authority from the authenticated tenant context. Never accept a tenant id from app input as proof of authority.
+- For tenant-user sign-in and calls to Core, follow [tenant authentication](tenant-authentication.md): use a user-delegated bearer in a BFF session, never invent a service account, and keep refresh tokens server-side.
 - Request only manifest capabilities needed by the approved workflow. Capability approval is separate from tenant RBAC. Bind the reserved deployment access permission and each app action to tenant roles; enforce action checks in the app backend.
 - Do not add unsupported fields such as historical connectivity.outbound_hosts or request direct tenant database access. Keep platform service credentials, host networking, and privileged execution out of an app release.
 - Treat uploaded files, browser content, connector output, and model output as untrusted data. Validate before parsing or rendering, and keep tenant records scoped to their deployment.

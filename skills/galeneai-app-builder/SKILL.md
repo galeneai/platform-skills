@@ -2,7 +2,7 @@
 name: galeneai-app-builder
 description: Build standalone apps for Galene tenants from discovery and an approved blueprint through release and tenant installation. Use for tenant application projects, not for implementing Galene platform internals.
 metadata:
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # Galene AI App Builder
@@ -21,7 +21,7 @@ Do not infer either from credentials, an existing workspace, or an earlier app. 
 ## Workflow
 
 1. Read [discovery and blueprint](references/discovery-and-blueprint.md). Understand the business need, user, current workflow, and observable acceptance result. Produce a short blueprint and wait for the user to approve it before implementation.
-2. Consult [the Galene feature map](references/platform-feature-map.md) only for features relevant to the approved app. Choose public app contracts and tenant capabilities; do not add native Galene code or rely on internal database access.
+2. Consult [the Galene feature map](references/platform-feature-map.md) only for features relevant to the approved app. Choose public app contracts and tenant capabilities; do not add native Galene code or rely on internal database access. For individual tenant sign-in, user-delegated API calls, or agent/session participation, also read [tenant authentication](references/tenant-authentication.md).
 3. Before writing a manifest, using app APIs, or packaging a release, read [contracts and snapshots](references/contracts.md). Treat the pinned snapshot as the contract at its recorded Platform Core commit. Local validation helps authoring; Core remains authoritative at publication.
 4. After blueprint approval, develop test-first: add a failing test for the next approved behavior, implement the smallest vertical slice, then run the relevant app tests. Ask for a new approval only when a requirement must expand beyond the approved blueprint.
 5. Read [security and release](references/security-release.md) before declaring capabilities, database resources, secrets, or release versions. If integrated registry was selected, also read [integrated registry status](references/integrated-registry.md); do not promise multi-component atomic import until its final API is in a committed snapshot.
@@ -39,6 +39,7 @@ Do not infer either from credentials, an existing workspace, or an earlier app. 
 
 - Start with [discovery and blueprint](references/discovery-and-blueprint.md) for each project.
 - Read [the Galene feature map](references/platform-feature-map.md) when choosing Core, models, ingestion, browsing, sandbox, knowledge-base, or connector integration.
+- Read [tenant authentication](references/tenant-authentication.md) when an app authenticates tenant users, calls Core as a user, or participates in agent/session execution.
 - Read [contracts and snapshots](references/contracts.md) when shaping a manifest or calling a published app API.
 - Read [security and release](references/security-release.md) when an app handles tenant data, capabilities, app databases, registry images, or installation.
 - Read [integrated registry status](references/integrated-registry.md) only if integrated registry import is selected or discussed.
