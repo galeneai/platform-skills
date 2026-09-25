@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.galene.ai/application-manifest/1.0/schema.json",
+  "title": "Galene tenant application manifest",
+  "description": "Public app manifest authoring contract curated from Platform Core a3026e0d7cfb09279765f7450476f040c85eb154. Direct version publication and integrated archive-import publication are separate flows. Server-side validation remains authoritative.",
+  "x-platform-core-commit": "a3026e0d7cfb09279765f7450476f040c85eb154",
+  "x-contract-snapshot": "snapshot-lock.json",
+  "type": "object",
+  "required": ["schema_version", "app", "components"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "app": { "$ref": "#/$defs/app" },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/component" }
+    },
+    "routes": { "type": "array", "items": { "$ref": "#/$defs/route" } },
+    "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capability" } },
+    "permissions": { "type": "array", "items": { "$ref": "#/$defs/permission" } },
+    "filesystem_resources": { "type": "array", "items": { "$ref": "#/$defs/filesystemResource" } },
+    "database_resources": { "type": "array", "items": { "$ref": "#/$defs/databaseResource" } },
+    "model_requirements": {
+      "anyOf": [
+        { "type": "array", "items": { "$ref": "#/$defs/modelRequirement" } },
+        { "type": "null" }
+      ]
+    },
+    "vfs": { "$ref": "#/$defs/vfs" },
+    "session_execution": {
+      "anyOf": [
+        { "$ref": "#/$defs/sessionExecution" },
+        { "type": "null" }
+      ]
+    },
+    "metadata": { "type": "object" }
+  },
+  "$defs": {
+    "app": {
+      "type": "object",
+      "required": ["slug", "name"],
+      "properties": {
+        "slug": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "requires_core": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+      }
+    },
+    "envVar": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+        "required": { "type": "boolean", "default": false },
+        "sensitive": { "type": "boolean", "default": false },
+        "default": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+        "description": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "sensitive": { "const": true } }, "required": ["sensitive"] },
+          "then": { "properties": { "default": { "type": "null" } } }
+        }
+      ]
+    },
+    "health": {
+      "type": "object",
+      "properties": {
+        "readiness_path": { "anyOf": [{ "type": "string", "pattern": "^/[^?#]*$" }, { "type": "null" }] },
+        "liveness_path": { "anyOf": [{ "type": "string", "pattern": "^/[^?#]*$" }, { "type": "null" }] },
+        "initial_delay_seconds": { "type": "integer", "minimum": 0, "maximum": 300, "default": 5 },
+        "period_seconds": { "type": "integer", "minimum": 1, "maximum": 300, "default": 10 },
+        "timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 60, "default": 3 },
+        "failure_threshold": { "type": "integer", "minimum": 1, "maximum": 20, "default": 3 }
+      },
+      "additionalProperties": false
+    },
+    "resources": {
+      "type": "object",
+      "properties": {
+        "cpu": { "anyOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }] },
+        "memory": { "anyOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }] }
+      },
+      "additionalProperties": false
+    },
+    "persistentVolume": {
+      "type": "object",
+      "required": ["size", "mount_path"],
+      "properties": {
+        "size": { "type": "string", "minLength": 1 },
+        "mount_path": { "type": "string", "pattern": "^/(?!$)" },
+        "storage_class": { "anyOf": [{ "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$" }, { "type": "null" }] },
+        "read_only": { "type": "boolean", "default": false }
+      },
+      "additionalProperties": false
+    },
+    "connectivity": {
+      "type": "object",
+      "properties": {
+        "depends_on": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      },
+      "additionalProperties": false
+    },
+    "imageSource": {
+      "type": "object",
+      "required": ["registry_source_id", "reference"],
+      "properties": {
+        "registry_source_id": { "type": "string", "format": "uuid" },
+        "repository": {
+          "anyOf": [
+            { "type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\s]+$" },
+            { "type": "null" }
+          ]
+        },
+        "reference": { "type": "string", "minLength": 1, "pattern": "^[^\\s/]+$" }
+      }
+    },
+    "archiveImport": {
+      "type": "object",
+      "required": ["registry_source_id"],
+      "properties": {
+        "registry_source_id": { "type": "string", "format": "uuid" }
+      }
+    },
+    "component": {
+      "type": "object",
+      "required": ["name", "kind"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$" },
+        "kind": { "type": "string", "enum": ["frontend", "backend", "worker"] },
+        "image": { "type": "string", "pattern": "^[^\\s/]+(?:/[^\\s/:]+)+(?:[:@][^\\s]+)$" },
+        "image_source": { "$ref": "#/$defs/imageSource" },
+        "archive_import": { "$ref": "#/$defs/archiveImport" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "command": { "type": "array", "items": { "type": "string" } },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "health": { "$ref": "#/$defs/health" },
+        "resources": { "$ref": "#/$defs/resources" },
+        "persistent_volume": { "anyOf": [{ "$ref": "#/$defs/persistentVolume" }, { "type": "null" }] },
+        "connectivity": { "$ref": "#/$defs/connectivity" },
+        "env_schema": { "type": "array", "items": { "$ref": "#/$defs/envVar" } }
+      },
+      "allOf": [
+        {
+          "oneOf": [
+            { "required": ["image"], "not": { "anyOf": [{ "required": ["image_source"] }, { "required": ["archive_import"] }] } },
+            { "required": ["image_source"], "not": { "anyOf": [{ "required": ["image"] }, { "required": ["archive_import"] }] } },
+            { "required": ["archive_import"], "not": { "anyOf": [{ "required": ["image"] }, { "required": ["image_source"] }] } }
+          ]
+        },
+        {
+          "if": { "properties": { "kind": { "enum": ["frontend", "backend"] } }, "required": ["kind"] },
+          "then": { "required": ["port"] }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "route": {
+      "type": "object",
+      "required": ["component"],
+      "properties": {
+        "component": { "type": "string" },
+        "role": { "type": "string", "enum": ["frontend", "api", "webhook"], "default": "frontend" },
+        "host_required": { "type": "boolean", "default": true },
+        "public": { "type": "boolean", "default": true }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "enum": ["core_api", "identity_provider", "object_storage", "queue", "memory_db"] },
+        "required": { "type": "boolean", "default": false },
+        "target_components": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      },
+      "additionalProperties": false
+    },
+    "permission": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^(?!application\\.)(?!access$)[a-z][a-z0-9_-]*(?:\\.[a-z][a-z0-9_-]*)*$"
+        },
+        "description": { "anyOf": [{ "type": "string", "maxLength": 500 }, { "type": "null" }] }
+      },
+      "additionalProperties": false
+    },
+    "filesystemResource": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$" },
+        "read_only": { "type": "boolean", "default": false },
+        "description": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+      }
+    },
+    "databaseResource": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$" },
+        "engine": { "type": "string", "const": "postgresql", "default": "postgresql" },
+        "extensions": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" }, "uniqueItems": true, "default": ["pgcrypto"] },
+        "target_components": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "env_prefix": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "default": "APP_DB" },
+        "url_env": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "default": "DATABASE_URL" },
+        "retain_on_uninstall": { "type": "boolean", "default": true },
+        "description": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+      }
+    },
+    "modelEnvTarget": {
+      "type": "object",
+      "required": ["component", "name"],
+      "properties": {
+        "component": { "type": "string" },
+        "name": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" }
+      },
+      "additionalProperties": false
+    },
+    "modelRequirement": {
+      "type": "object",
+      "required": ["role", "slot"],
+      "properties": {
+        "role": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,62}$" },
+        "slot": { "type": "string", "enum": ["llm", "embedding"] },
+        "requirement": { "type": "string", "enum": ["required", "optional"], "default": "required" },
+        "capabilities": { "type": "array", "items": { "type": "string", "enum": ["chat", "embedding"] }, "uniqueItems": true },
+        "input_modalities": { "type": "array", "minItems": 1, "items": { "type": "string", "enum": ["text", "image"] }, "uniqueItems": true, "default": ["text"] },
+        "env": { "type": "array", "items": { "$ref": "#/$defs/modelEnvTarget" } }
+      },
+      "additionalProperties": false
+    },
+    "vfs": {
+      "type": "object",
+      "properties": {
+        "default_base_path": { "type": "string", "minLength": 1, "default": "/workspace" },
+        "changeset_retention_days": { "type": "integer", "minimum": 1, "default": 30 },
+        "changeset_retention_count": { "type": "integer", "minimum": 1, "default": 100 }
+      }
+    },
+    "sessionExecution": {
+      "type": "object",
+      "required": ["component"],
+      "properties": {
+        "component": { "type": "string" },
+        "protocol_version": { "type": "integer", "enum": [1, 2], "default": 1 }
+      }
+    }
+  }
+}

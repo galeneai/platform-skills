@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "tenant": {
+    "slug": "acme-test",
+    "environment": "test"
+  },
+  "registry": {
+    "choice": "external-owner",
+    "source_slug": "acme-oci"
+  }
+}

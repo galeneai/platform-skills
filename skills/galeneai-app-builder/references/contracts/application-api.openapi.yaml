@@ -1,0 +1,841 @@
+openapi: 3.1.0
+info:
+  title: Galene tenant application API excerpt
+  version: "a3026e0d7cfb"
+  description: >-
+    Public application package, validation, registry, integrated archive import,
+    tenant availability, and installation contracts curated from the exact
+    Platform Core commit recorded in snapshot-lock.json. Responses use the
+    platform WSResponse envelope except the manifest-validation endpoint.
+    This focused snapshot omits unrelated Core APIs.
+  x-platform-core-commit: a3026e0d7cfb09279765f7450476f040c85eb154
+servers:
+  - url: /
+security:
+  - bearerAuth: []
+paths:
+  /controlplane/applications:
+    get:
+      operationId: listApplicationPackages
+      summary: List app packages
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.read
+      responses:
+        "200":
+          description: WSResponse with application package rows.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WSResponse" }
+    post:
+      operationId: createApplicationPackage
+      summary: Create app package
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateApplicationPackageRequest" }
+      responses:
+        "201":
+          description: WSResponse containing the created package.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WSResponse" }
+
+  /controlplane/applications/{package_id}/versions:
+    parameters:
+      - $ref: "#/components/parameters/PackageId"
+    get:
+      operationId: listApplicationPackageVersions
+      summary: List immutable app versions
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.read
+      responses:
+        "200":
+          description: WSResponse containing published package versions.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WSResponse" }
+    post:
+      operationId: createApplicationPackageVersion
+      summary: Create an immutable app version from external image references
+      description: >-
+        This route rejects archive_import targets. Validate the proposed version
+        through /controlplane/application-manifests/validate first. Core repeats
+        validation when creating the immutable version.
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateApplicationPackageVersionRequest" }
+      responses:
+        "201":
+          description: WSResponse containing the immutable version and manifest digest.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WSResponse" }
+        "422":
+          description: Manifest or version contract validation failed.
+
+  /controlplane/application-manifests/validate:
+    post:
+      operationId: validateApplicationManifest
+      summary: Preflight a new app version manifest
+      description: >-
+        Read-only validation of the new-version DTO, package slug match, registry
+        source existence, and immutable sha256 reference for an internal source.
+        The response contains field errors only; it never echoes the manifest or
+        request context. archive_import components belong to the archive-import
+        workflow, not this endpoint.
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ValidateApplicationManifestRequest" }
+      responses:
+        "200":
+          description: The manifest is valid.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApplicationManifestValidationResponse"
+                example: { valid: true, errors: [] }
+        "422":
+          description: The manifest is invalid. Input and validation context are not echoed.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApplicationManifestValidationResponse"
+                example:
+                  valid: false
+                  errors:
+                    - path: "manifest.components[0].image_source.reference"
+                      message: "must use an immutable sha256 digest"
+                      type: "value_error"
+
+  /controlplane/applications/{package_id}/availability:
+    parameters:
+      - $ref: "#/components/parameters/PackageId"
+    get:
+      operationId: listApplicationAvailability
+      summary: List tenant availability for a package
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.read
+      responses:
+        "200":
+          description: WSResponse containing tenant availability rows.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WSResponse" }
+    post:
+      operationId: setApplicationAvailability
+      summary: Make an externally published version available to a tenant
+      description: >-
+        Integrated archive import publishes version and tenant availability
+        together and does not require this follow-up call.
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetApplicationAvailabilityRequest" }
+      responses:
+        "200":
+          description: WSResponse containing the availability record.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WSResponse" }
+
+  /controlplane/registry-sources:
+    get:
+      operationId: listRegistrySources
+      summary: List registry sources
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.registry_sources.manage
+      responses:
+        "200":
+          description: WSResponse with source metadata; raw credentials are never returned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WSResponse" }
+    post:
+      operationId: createRegistrySource
+      summary: Create a registry source
+      description: >-
+        External sources require an explicitly supplied username/password pair
+        and remain unverified until verify succeeds. Credentials are stored by
+        the platform through server-side secret handling. Internal registry
+        credentials are generated by the platform.
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.registry_sources.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegistrySourceWrite" }
+      responses:
+        "201":
+          description: WSResponse containing safe registry source metadata.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WSResponse" }
+
+  /controlplane/registry-sources/{source_id}/verify:
+    parameters:
+      - $ref: "#/components/parameters/RegistrySourceId"
+    post:
+      operationId: verifyRegistrySource
+      summary: Verify a registry source
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.registry_sources.manage
+      responses:
+        "200":
+          description: WSResponse containing verification state and a safe status message.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WSResponse" }
+
+  /controlplane/applications/{package_id}/archive-imports:
+    parameters:
+      - $ref: "#/components/parameters/PackageId"
+    post:
+      operationId: createApplicationArchiveImport
+      summary: Create an integrated-registry archive import
+      description: >-
+        The manifest may contain multiple archive_import components, up to 64.
+        All imported components must use the same enabled, verified internal
+        registry source. The job response lists component_names and
+        target_repositories. Complete image copies create the immutable version
+        and selected tenant availability atomically.
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateApplicationArchiveImportRequest" }
+      responses:
+        "201":
+          description: WSResponse containing the import job and multipart upload state.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WSResponseApplicationArchiveImport" }
+        "409":
+          description: The package version already exists or an active import is in progress.
+        "422":
+          description: Invalid manifest, package slug, or internal registry source.
+
+  /controlplane/application-archive-imports/{import_id}:
+    parameters:
+      - $ref: "#/components/parameters/ImportId"
+    get:
+      operationId: getApplicationArchiveImport
+      summary: Read archive inspection and import state
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.manage
+      responses:
+        "200":
+          description: WSResponse containing candidate images, component mappings/digests, and job status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WSResponseApplicationArchiveImport" }
+
+  /controlplane/application-archive-imports/{import_id}/parts/{part_number}:
+    parameters:
+      - $ref: "#/components/parameters/ImportId"
+      - name: part_number
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      operationId: presignApplicationArchivePart
+      summary: Request a multipart archive upload URL
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.manage
+      responses:
+        "200":
+          description: WSResponse containing a short-lived upload URL and multipart part details.
+
+  /controlplane/application-archive-imports/{import_id}/parts:
+    parameters:
+      - $ref: "#/components/parameters/ImportId"
+    get:
+      operationId: listApplicationArchiveParts
+      summary: List uploaded multipart archive parts
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.manage
+      responses:
+        "200":
+          description: WSResponse containing uploaded part identifiers and entity tags.
+
+  /controlplane/application-archive-imports/{import_id}/complete:
+    parameters:
+      - $ref: "#/components/parameters/ImportId"
+    post:
+      operationId: completeApplicationArchiveUpload
+      summary: Complete multipart archive upload and queue inspection
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CompleteApplicationArchiveUploadRequest" }
+      responses:
+        "200":
+          description: WSResponse containing the queued archive import.
+        "409":
+          description: Archive upload does not accept completion.
+
+  /controlplane/application-archive-imports/{import_id}/select-images:
+    parameters:
+      - $ref: "#/components/parameters/ImportId"
+    post:
+      operationId: selectApplicationArchiveImages
+      summary: Map every imported component to an inspected archive candidate
+      description: >-
+        The mappings must cover every archive_import component exactly once.
+        Candidate IDs must come from inspection. A candidate may be reused for
+        more than one component. The old select-image route remains for
+        single-component imports.
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SelectApplicationArchiveCandidatesRequest" }
+      responses:
+        "200":
+          description: WSResponse containing the persisted mapping and queued import.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WSResponseApplicationArchiveImport" }
+        "422":
+          description: Mapping omits a component, names an unknown component, or selects an uninspected image.
+
+  /controlplane/application-archive-imports/{import_id}/select-image:
+    parameters:
+      - $ref: "#/components/parameters/ImportId"
+    post:
+      operationId: selectApplicationArchiveImage
+      summary: Select an archive candidate for a single-component import
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [candidate_id]
+              properties:
+                candidate_id: { type: string, pattern: "^[a-z0-9-]+$" }
+      responses:
+        "200":
+          description: WSResponse containing the selected candidate and queued import.
+        "422":
+          description: This compatibility route only supports one imported component.
+
+  /controlplane/application-archive-imports/{import_id}/retry:
+    parameters:
+      - $ref: "#/components/parameters/ImportId"
+    post:
+      operationId: retryApplicationArchiveImport
+      summary: Retry a completed failed archive import
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.manage
+      responses:
+        "200":
+          description: WSResponse containing the retried import state.
+
+  /controlplane/application-archive-imports/{import_id}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/ImportId"
+    post:
+      operationId: cancelApplicationArchiveImport
+      summary: Cancel an archive import
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.manage
+      responses:
+        "200":
+          description: WSResponse containing the cancellation state.
+
+  /controlplane/tenants:
+    get:
+      operationId: listControlPlaneTenants
+      summary: List tenants for explicit publisher installation
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.tenants.read
+      responses:
+        "200":
+          description: WSResponse containing tenant IDs and slugs.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WSResponse" }
+
+  /controlplane/tenants/{tenant_id}/application-domain-options:
+    parameters:
+      - $ref: "#/components/parameters/TenantId"
+    get:
+      operationId: listTenantApplicationDomainOptions
+      summary: List available managed domains assignable to the selected tenant
+      description: >-
+        Returns only AVAILABLE domain options that are not assigned or reserved
+        for another tenant. Publisher install must explicitly choose a returned
+        managed_domain_id for each manifest route with host_required true.
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.deploy
+      responses:
+        "200":
+          description: WSResponse whose result contains {id, host, display_name} items.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WSResponseApplicationDomainOptions" }
+
+  /controlplane/tenants/{tenant_id}/application-deployments:
+    parameters:
+      - $ref: "#/components/parameters/TenantId"
+    post:
+      operationId: installApplicationForTenant
+      summary: Install an app version for an explicitly selected tenant
+      description: >-
+        Publisher flow. Package and version IDs are explicit. Create required
+        domain bindings after the deployment is created.
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.deploy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateTenantApplicationDeploymentRequest" }
+      responses:
+        "201":
+          description: WSResponse containing the new tenant deployment.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WSResponse" }
+
+  /controlplane/application-deployments/{deployment_id}/domains:
+    parameters:
+      - $ref: "#/components/parameters/DeploymentId"
+    post:
+      operationId: createApplicationDomainBinding
+      summary: Bind a manifest route to an available managed domain
+      description: >-
+        Publisher deployment flow. Provide managed_domain_id or host, not both.
+        The publisher install path uses a managed_domain_id returned by the
+        selected tenant's application-domain-options route. Bind only routes
+        whose manifest entry sets host_required to true.
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.deploy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateTenantApplicationDomainRequest" }
+      responses:
+        "201":
+          description: WSResponse containing the created binding.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WSResponse" }
+
+  /controlplane/application-deployments/{deployment_id}:
+    parameters:
+      - $ref: "#/components/parameters/DeploymentId"
+    patch:
+      operationId: updateControlPlaneApplicationDeployment
+      summary: Upgrade or update a tenant app deployment
+      x-authorization-context: control-plane
+      x-required-controlplane-permission: controlplane.applications.deploy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateTenantApplicationDeploymentRequest" }
+      responses:
+        "200":
+          description: WSResponse containing the updated deployment.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WSResponse" }
+
+  /tenant/applications/available:
+    get:
+      operationId: listTenantAvailableApplications
+      summary: List apps available to the authenticated tenant
+      x-authorization-context: tenant
+      x-required-tenant-permission: application.list
+      responses:
+        "200":
+          description: WSResponse; result items include package, version, and availability.
+
+  /tenant/applications/deployments:
+    get:
+      operationId: listTenantApplicationDeployments
+      summary: List app deployments for the authenticated tenant
+      x-authorization-context: tenant
+      x-required-tenant-permission: application.list
+      responses:
+        "200":
+          description: WSResponse containing tenant deployments.
+    post:
+      operationId: installTenantApplication
+      summary: Install an available app version in the authenticated tenant
+      x-authorization-context: tenant
+      x-required-tenant-permission: application.install
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateTenantApplicationDeploymentRequest" }
+      responses:
+        "201":
+          description: WSResponse containing the new tenant deployment.
+        "404":
+          description: Package/version is not available to the authenticated tenant.
+
+  /tenant/applications/deployments/{deployment_id}:
+    parameters:
+      - $ref: "#/components/parameters/DeploymentId"
+    get:
+      operationId: getTenantApplicationDeployment
+      summary: Get a tenant app deployment
+      x-authorization-context: tenant
+      x-required-tenant-permission: application.get
+      responses:
+        "200":
+          description: WSResponse containing tenant-scoped deployment status.
+    patch:
+      operationId: updateTenantApplicationDeployment
+      summary: Update or upgrade a tenant app deployment
+      x-authorization-context: tenant
+      x-required-tenant-permission: application.update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateTenantApplicationDeploymentRequest" }
+      responses:
+        "200":
+          description: WSResponse containing the updated deployment.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    PackageId:
+      name: package_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    RegistrySourceId:
+      name: source_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TenantId:
+      name: tenant_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    DeploymentId:
+      name: deployment_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ImportId:
+      name: import_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    WSResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        result: {}
+        total: { type: [integer, "null"] }
+    WSResponseApplicationArchiveImport:
+      allOf:
+        - $ref: "#/components/schemas/WSResponse"
+        - type: object
+          properties:
+            result: { $ref: "#/components/schemas/ApplicationArchiveImportResponse" }
+    ApplicationArchiveImportResponse:
+      type: object
+      required:
+        - id
+        - package_id
+        - tenant_id
+        - registry_source_id
+        - version
+        - component_name
+        - staging_key
+        - target_repository
+        - status
+        - error_message
+        - created_at
+        - updated_at
+      properties:
+        id: { type: string, format: uuid }
+        package_id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        registry_source_id: { type: string, format: uuid }
+        version: { type: string }
+        component_name: { type: string }
+        archive_filename: { type: [string, "null"] }
+        staging_key: { type: string }
+        multipart_upload_id: { type: [string, "null"] }
+        archive_sha256: { type: [string, "null"] }
+        archive_size_bytes: { type: [integer, "null"] }
+        target_repository: { type: string }
+        target_repositories:
+          type: array
+          items: { type: string }
+        workflow_id: { type: [string, "null"] }
+        status: { type: string }
+        result_digest: { type: [string, "null"] }
+        result_version_id: { type: [string, "null"], format: uuid }
+        candidate_images:
+          type: array
+          items: { type: object }
+        selected_candidate: { type: [string, "null"] }
+        component_names:
+          type: array
+          items: { type: string }
+        component_mappings:
+          type: object
+          additionalProperties: { type: string }
+        component_digests:
+          type: object
+          additionalProperties: { type: string, pattern: "^sha256:[0-9a-f]{64}$" }
+        error_message: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    WSResponseApplicationDomainOptions:
+      allOf:
+        - $ref: "#/components/schemas/WSResponse"
+        - type: object
+          properties:
+            result:
+              type: array
+              items: { $ref: "#/components/schemas/ApplicationDomainOption" }
+    ApplicationDomainOption:
+      type: object
+      required: [id, host]
+      properties:
+        id: { type: string, format: uuid }
+        host: { type: string }
+        display_name: { type: [string, "null"] }
+    ApplicationManifest:
+      $ref: "./application-manifest.schema.json"
+    CreateApplicationPackageRequest:
+      type: object
+      required: [slug, name]
+      properties:
+        slug: { type: string }
+        name: { type: string }
+        description: { type: [string, "null"] }
+        status: { type: string, enum: [draft, active, suspended, retired], default: draft }
+        built_in: { type: boolean, default: false }
+        owner: { type: [string, "null"] }
+        metadata: { type: object }
+    CreateApplicationPackageVersionRequest:
+      type: object
+      required: [version, manifest]
+      properties:
+        version: { type: string }
+        manifest: { $ref: "#/components/schemas/ApplicationManifest" }
+        status: { type: string, enum: [draft, active, deprecated, retired], default: draft }
+        release_notes: { type: [string, "null"] }
+    ValidateApplicationManifestRequest:
+      type: object
+      additionalProperties: false
+      required: [package_slug, version, manifest]
+      properties:
+        package_slug: { type: string }
+        version: { type: string }
+        manifest: { type: object }
+    ApplicationManifestValidationResponse:
+      type: object
+      additionalProperties: false
+      required: [valid, errors]
+      properties:
+        valid: { type: boolean }
+        errors:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [path, message, type]
+            properties:
+              path: { type: string }
+              message: { type: string }
+              type: { type: string }
+    SetApplicationAvailabilityRequest:
+      type: object
+      required: [version_id]
+      properties:
+        tenant_id: { type: [string, "null"], format: uuid }
+        version_id: { type: string, format: uuid }
+        status: { type: string, enum: [available, suspended, revoked], default: available }
+        notes: { type: [string, "null"] }
+    RegistrySourceWrite:
+      type: object
+      required: [slug, name, kind, endpoint]
+      properties:
+        slug:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$"
+        name: { type: string }
+        kind: { type: string, enum: [internal, external] }
+        endpoint:
+          type: string
+          format: uri
+          description: HTTPS registry origin without path, query, or fragment.
+        verification_repository: { type: [string, "null"] }
+        node_trust_ca_sha256: { type: [string, "null"], pattern: "^(sha256:)?[a-fA-F0-9]{64}$" }
+        token_realm_allowlist:
+          type: array
+          items: { type: string, format: uri }
+        enabled: { type: boolean, default: true }
+        username: { type: [string, "null"] }
+        password:
+          type: [string, "null"]
+          writeOnly: true
+          format: password
+        ca_bundle_pem:
+          type: [string, "null"]
+          writeOnly: true
+          format: password
+      description: >-
+        External sources require username and password together. Internal
+        credentials are generated by the platform. Never put source credentials
+        in public examples or release artifacts.
+    CreateApplicationArchiveImportRequest:
+      type: object
+      required: [tenant_id, version, manifest, archive_filename]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        version: { type: string, minLength: 1, maxLength: 128 }
+        manifest: { $ref: "#/components/schemas/ApplicationManifest" }
+        archive_filename: { type: string, minLength: 1, maxLength: 255 }
+        release_notes: { type: [string, "null"] }
+      description: >-
+        Manifest must include at least one and no more than 64 archive_import
+        components. All imported components must name the same internal source.
+    CompleteApplicationArchiveUploadRequest:
+      type: object
+      required: [archive_size_bytes, parts]
+      properties:
+        archive_sha256: { type: [string, "null"], pattern: "^(sha256:)?[a-fA-F0-9]{64}$" }
+        archive_size_bytes: { type: integer, exclusiveMinimum: 0, maximum: 21474836480 }
+        parts:
+          type: array
+          minItems: 1
+          maxItems: 10000
+          items: { type: object }
+    SelectApplicationArchiveCandidatesRequest:
+      type: object
+      required: [mappings]
+      properties:
+        mappings:
+          type: array
+          minItems: 1
+          maxItems: 64
+          items:
+            type: object
+            required: [component_name, candidate_id]
+            properties:
+              component_name: { type: string, pattern: "^[a-z][a-z0-9-]*$" }
+              candidate_id: { type: string, pattern: "^[a-z0-9-]+$" }
+    CreateTenantApplicationDeploymentRequest:
+      type: object
+      required: [package_id, version_id]
+      properties:
+        package_id: { type: string, format: uuid }
+        version_id: { type: string, format: uuid }
+        deployment_name: { type: [string, "null"] }
+        runtime: { type: string, default: auto }
+        config: { type: object }
+        env:
+          type: array
+          items: { $ref: "#/components/schemas/ApplicationEnvValue" }
+        model_bindings: { type: [object, "null"] }
+        approved_capabilities:
+          type: array
+          items: { type: string }
+        permission_role_bindings:
+          type: [object, "null"]
+          additionalProperties:
+            type: array
+            items: { type: string, format: uuid }
+      description: >-
+        This request creates one deployment inside the selected tenant. The
+        Control Plane route uses its own publisher permission. Do not include
+        server-owned model config fields.
+    UpdateTenantApplicationDeploymentRequest:
+      type: object
+      properties:
+        version_id: { type: [string, "null"], format: uuid }
+        desired_status: { type: [string, "null"], enum: [deployed, suspended, uninstalled] }
+        config: { type: [object, "null"] }
+        env:
+          type: [array, "null"]
+          items: { $ref: "#/components/schemas/ApplicationEnvValue" }
+        model_bindings: { type: [object, "null"] }
+        approved_capabilities:
+          type: [array, "null"]
+          items: { type: string }
+        permission_role_bindings: { type: [object, "null"] }
+    ApplicationEnvValue:
+      type: object
+      required: [component, name]
+      properties:
+        component: { type: string }
+        name: { type: string }
+        value: { type: [string, "null"] }
+        secret_value:
+          type: [string, "null"]
+          writeOnly: true
+          format: password
+      description: Supply either value or secret_value, never both.
+    CreateTenantApplicationDomainRequest:
+      type: object
+      additionalProperties: false
+      required: [component_name]
+      properties:
+        component_name: { type: string }
+        route_role: { type: string, enum: [frontend, api, webhook], default: frontend }
+        managed_domain_id: { type: [string, "null"], format: uuid }
+        host: { type: [string, "null"] }
+        certificate_mode:
+          type: [string, "null"]
+          enum: [appliance, automatic, uploaded, disabled, null]
+        certificate_id: { type: [string, "null"], format: uuid }
+        tls_certificate_pem:
+          type: [string, "null"]
+          writeOnly: true
+          format: password
+        tls_private_key_pem:
+          type: [string, "null"]
+          writeOnly: true
+          format: password
+      description: >-
+        Provide exactly one of managed_domain_id and host. The publisher
+        installer uses a returned managed_domain_id and does not send raw TLS
+        material.

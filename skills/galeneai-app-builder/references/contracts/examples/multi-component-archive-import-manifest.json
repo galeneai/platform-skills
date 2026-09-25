@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "app": {
+    "slug": "team-notes",
+    "name": "Team Notes",
+    "requires_core": ">=1.2,<2.0"
+  },
+  "components": [
+    {
+      "name": "web",
+      "kind": "frontend",
+      "archive_import": {
+        "registry_source_id": "88888888-8888-4888-8888-888888888888"
+      },
+      "port": 3000
+    },
+    {
+      "name": "api",
+      "kind": "backend",
+      "archive_import": {
+        "registry_source_id": "88888888-8888-4888-8888-888888888888"
+      },
+      "port": 8080
+    }
+  ],
+  "routes": [
+    {
+      "component": "web",
+      "role": "frontend",
+      "host_required": true
+    },
+    {
+      "component": "api",
+      "role": "api",
+      "host_required": false
+    }
+  ],
+  "metadata": {
+    "example": "integrated archive-import request; temporary targets are resolved to immutable digests by Core"
+  }
+}

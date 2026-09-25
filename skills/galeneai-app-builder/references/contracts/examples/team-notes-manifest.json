@@ -1,0 +1,106 @@
+{
+  "schema_version": "1.0",
+  "app": {
+    "slug": "team-notes",
+    "name": "Team Notes",
+    "requires_core": ">=1.2,<2.0"
+  },
+  "components": [
+    {
+      "name": "web",
+      "kind": "frontend",
+      "image_source": {
+        "registry_source_id": "77777777-7777-4777-8777-777777777777",
+        "repository": "acme/team-notes-web",
+        "reference": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      },
+      "port": 3000,
+      "health": {
+        "readiness_path": "/healthz",
+        "liveness_path": "/healthz"
+      },
+      "env_schema": [
+        {
+          "name": "PUBLIC_API_BASE_URL",
+          "required": true,
+          "sensitive": false,
+          "description": "Public API origin configured by the app release."
+        }
+      ]
+    },
+    {
+      "name": "api",
+      "kind": "backend",
+      "image_source": {
+        "registry_source_id": "77777777-7777-4777-8777-777777777777",
+        "repository": "acme/team-notes-api",
+        "reference": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      },
+      "port": 8080,
+      "health": {
+        "readiness_path": "/readyz",
+        "liveness_path": "/livez"
+      },
+      "resources": {
+        "cpu": "250m",
+        "memory": "256Mi"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "component": "web",
+      "role": "frontend",
+      "host_required": true,
+      "public": true
+    },
+    {
+      "component": "api",
+      "role": "api",
+      "host_required": false,
+      "public": false
+    }
+  ],
+  "capabilities": [
+    {
+      "name": "core_api",
+      "required": true,
+      "target_components": ["api"]
+    },
+    {
+      "name": "identity_provider",
+      "required": true,
+      "target_components": ["api"]
+    },
+    {
+      "name": "object_storage",
+      "required": false,
+      "target_components": ["api"]
+    }
+  ],
+  "permissions": [
+    {
+      "name": "notes.read",
+      "description": "Read notes available to the current tenant user."
+    },
+    {
+      "name": "notes.write",
+      "description": "Create and edit notes."
+    }
+  ],
+  "database_resources": [
+    {
+      "name": "primary",
+      "engine": "postgresql",
+      "extensions": ["pgcrypto"],
+      "target_components": ["api"],
+      "env_prefix": "APP_DB",
+      "url_env": "DATABASE_URL",
+      "retain_on_uninstall": true,
+      "description": "Tenant-isolated application data."
+    }
+  ],
+  "metadata": {
+    "contract_example": true
+  }
+}

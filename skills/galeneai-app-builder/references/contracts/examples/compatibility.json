@@ -1,0 +1,12 @@
+{
+  "app_version": "1.2.0",
+  "manifest_schema": "1.0",
+  "platform_core_commit": "a3026e0d7cfb09279765f7450476f040c85eb154",
+  "manifest_schema_sha256": "b417aa9796bac04dc3a2ecd9f4e6a5d997077ccfc292b063353e26397d4f66ff",
+  "openapi_sha256": "49a744bd8608e8b546376b91e25bc0d27f544b68104f72a2396fd3a552f76329",
+  "registry_mode": "external-owner",
+  "runtime_adapters": {
+    "compose": "pending",
+    "kubernetes": "pending"
+  }
+}
