@@ -11,6 +11,7 @@ import tarfile
 import tempfile
 import unittest
 import urllib.error
+import urllib.request
 from pathlib import Path
 from shutil import copyfile
 from unittest.mock import patch
@@ -21,7 +22,9 @@ EXAMPLES = SKILL_ROOT / "references" / "contracts" / "examples"
 sys.path.insert(0, str(SCRIPTS))
 
 from _support import load_json, validate_manifest  # noqa: E402
-from install import install_deployment  # noqa: E402
+from doctor import doctor as run_doctor  # noqa: E402
+from http_client import NoRedirectHandler, open_no_redirect  # noqa: E402
+from install import install_deployment, request_json  # noqa: E402
 
 
 def load_script(name: str):
@@ -48,6 +51,17 @@ class SkillToolingTests(unittest.TestCase):
         errors = validate_manifest(manifest)
         self.assertTrue(any("capabilities" in error for error in errors))
         self.assertTrue(any("connectivity" in error for error in errors))
+
+    def test_doctor_uses_integrated_import_flow_from_project_context(self):
+        with tempfile.TemporaryDirectory() as temp:
+            project = Path(temp)
+            manifest = load_json(EXAMPLES / "multi-component-archive-import-manifest.json")
+            context = load_json(EXAMPLES / "app-project.json")
+            context["registry"] = {"choice": "integrated"}
+            (project / "galene-app.json").write_text(json.dumps(manifest), encoding="utf-8")
+            (project / "galene-app-project.json").write_text(json.dumps(context), encoding="utf-8")
+
+            self.assertEqual(run_doctor(project), [])
 
     def test_release_check_requires_immutable_image_digests(self):
         manifest = load_json(EXAMPLES / "team-notes-manifest.json")
@@ -79,6 +93,17 @@ class SkillToolingTests(unittest.TestCase):
             copyfile(EXAMPLES / "app-project.json", project / "galene-app-project.json")
             compatibility = load_json(EXAMPLES / "compatibility.json")
             compatibility["openapi_sha256"] = "0" * 64
+            (project / "compatibility.json").write_text(json.dumps(compatibility), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "pinned contract snapshot"):
+                PACKAGE.build_bundle(project, "1.2.0", project / "bundle.tar.gz")
+
+    def test_package_rejects_compatibility_from_an_arbitrary_core_commit(self):
+        with tempfile.TemporaryDirectory() as temp:
+            project = Path(temp)
+            copyfile(EXAMPLES / "team-notes-manifest.json", project / "galene-app.json")
+            copyfile(EXAMPLES / "app-project.json", project / "galene-app-project.json")
+            compatibility = load_json(EXAMPLES / "compatibility.json")
+            compatibility["platform_core_commit"] = "0" * 40
             (project / "compatibility.json").write_text(json.dumps(compatibility), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "pinned contract snapshot"):
                 PACKAGE.build_bundle(project, "1.2.0", project / "bundle.tar.gz")
@@ -295,7 +320,7 @@ class SkillToolingTests(unittest.TestCase):
             None,
             io.BytesIO(body),
         )
-        with patch("urllib.request.urlopen", side_effect=response) as urlopen:
+        with patch.object(VALIDATE, "open_no_redirect", side_effect=response) as urlopen:
             result = VALIDATE.server_validate(
                 "https://control-plane.example",
                 "test-only-token",
@@ -312,6 +337,42 @@ class SkillToolingTests(unittest.TestCase):
         )
         self.assertFalse(result["valid"])
         self.assertEqual(result["errors"][0]["path"], "manifest.components[0].image_source.reference")
+
+    def test_api_http_opener_refuses_redirects(self):
+        request = urllib.request.Request("https://control-plane.example/controlplane/tenants")
+        redirect = urllib.error.HTTPError(
+            request.full_url,
+            302,
+            "redirect",
+            {"Location": "https://untrusted.example/collect"},
+            io.BytesIO(b""),
+        )
+        with patch("http_client.urllib.request.build_opener") as build_opener:
+            build_opener.return_value.open.side_effect = redirect
+            with self.assertRaises(urllib.error.HTTPError):
+                open_no_redirect(request)
+
+        handlers = build_opener.call_args.args
+        self.assertEqual(len(handlers), 1)
+        self.assertIsInstance(handlers[0], NoRedirectHandler)
+        build_opener.return_value.open.assert_called_once_with(request, timeout=30)
+
+    def test_api_client_reports_redirect_without_following_it(self):
+        redirect = urllib.error.HTTPError(
+            "https://control-plane.example/controlplane/tenants",
+            302,
+            "redirect",
+            {"Location": "https://untrusted.example/collect"},
+            io.BytesIO(b""),
+        )
+        with patch("install.open_no_redirect", side_effect=redirect) as opener:
+            with self.assertRaisesRegex(RuntimeError, "HTTP 302"):
+                request_json(
+                    "https://control-plane.example",
+                    "/controlplane/tenants",
+                    "test-only-token",
+                )
+        opener.assert_called_once()
 
     def test_snapshot_hashes_match_lock(self):
         lock = load_json(SKILL_ROOT / "references" / "contracts" / "snapshot-lock.json")

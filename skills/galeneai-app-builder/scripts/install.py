@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from _support import load_json, validate_project_context
+from http_client import open_no_redirect
 
 RequestJson = Callable[[str, str, str, str, dict[str, Any] | None], Any]
 
@@ -45,7 +46,7 @@ def request_json(
     request = urllib.request.Request(url, data=data, headers=headers, method=method)
 
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with open_no_redirect(request, timeout=30) as response:
             body = response.read()
     except urllib.error.HTTPError as exc:
         raise RuntimeError(f"application API returned HTTP {exc.code}") from None

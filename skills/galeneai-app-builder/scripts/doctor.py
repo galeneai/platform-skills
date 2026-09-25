@@ -36,8 +36,19 @@ def doctor(project: Path) -> list[str]:
         try:
             manifest = load_json(manifest_path)
             context = load_json(project_path)
-            issues.extend(f"manifest: {item}" for item in validate_manifest(manifest))
-            issues.extend(f"project context: {item}" for item in validate_project_context(context))
+            context_errors = validate_project_context(context)
+            issues.extend(f"project context: {item}" for item in context_errors)
+            registry = context.get("registry") if isinstance(context, dict) else None
+            flow = (
+                "archive-import"
+                if not context_errors and isinstance(registry, dict)
+                and registry.get("choice") == "integrated"
+                else "version"
+            )
+            issues.extend(
+                f"manifest: {item}"
+                for item in validate_manifest(manifest, flow=flow)
+            )
         except RuntimeError as exc:
             issues.append(str(exc))
         except ValueError as exc:

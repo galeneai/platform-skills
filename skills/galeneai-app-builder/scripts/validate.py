@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from _support import load_json, validate_manifest
+from http_client import open_no_redirect
 from install import _validated_base_url
 
 
@@ -34,7 +35,7 @@ def server_validate(
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with open_no_redirect(request, timeout=30) as response:
             status = response.status
             raw = response.read()
     except urllib.error.HTTPError as exc:
