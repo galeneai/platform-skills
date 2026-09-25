@@ -133,7 +133,7 @@ class SkillToolingTests(unittest.TestCase):
     def test_integrated_import_components_must_share_one_registry_source(self):
         manifest = load_json(EXAMPLES / "team-notes-manifest.json")
         for index, component in enumerate(manifest["components"]):
-            component.pop("image")
+            component.pop("image_source")
             component["archive_import"] = {
                 "registry_source_id": f"{index + 1}1111111-1111-4111-8111-111111111111"
             }

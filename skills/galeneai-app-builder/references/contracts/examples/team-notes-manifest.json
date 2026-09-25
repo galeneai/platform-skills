@@ -34,7 +34,7 @@
       "image_source": {
         "registry_source_id": "77777777-7777-4777-8777-777777777777",
         "repository": "acme/team-notes-api",
-        "reference": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        "reference": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
       },
       "port": 8080,
       "health": {
