@@ -1,11 +1,11 @@
 ---
-name: galeneai-app-builder
+name: galeneai-faber
 description: Build standalone apps for Galene tenants from discovery and an approved blueprint through release and tenant installation. Use for tenant application projects, not for implementing Galene platform internals.
 metadata:
-  version: "0.2.0"
+  version: "0.2.1"
 ---
 
-# Galene AI App Builder
+# Galene.AI Faber
 
 Build an application as an independently released tenant product that uses Galene's public app manifest and APIs. Keep the app stack-free: its local doctor, validation, packaging, and tests must not require a running Galene Compose or Kubernetes stack.
 

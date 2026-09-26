@@ -1,7 +1,0 @@
-interface:
-  display_name: "Galene AI App Builder"
-  short_description: "Build, release, and install standalone Galene tenant apps"
-  default_prompt: "Use $galeneai-app-builder to design and build a tenant app from its business need through installation."
-
-policy:
-  allow_implicit_invocation: true

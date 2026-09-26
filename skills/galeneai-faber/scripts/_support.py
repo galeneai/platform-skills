@@ -1,4 +1,4 @@
-"""Shared offline helpers for the galeneai-app-builder skill."""
+"""Shared offline helpers for the galeneai-faber skill."""
 
 from __future__ import annotations
 
