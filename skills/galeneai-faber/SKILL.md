@@ -2,14 +2,16 @@
 name: galeneai-faber
 description: Build standalone apps for Galene tenants from discovery and an approved blueprint through release and tenant installation. Use for tenant application projects, not for implementing Galene platform internals.
 metadata:
-  version: "0.3.1"
+  version: "0.3.2"
 ---
 
 # Galene.AI Faber
 
 Build an application as an independently released tenant product that uses Galene's public app manifest and APIs. Keep the app stack-free: its local doctor, validation, packaging, and tests must not require a running Galene Compose or Kubernetes stack.
 
-Keep tenant-user sign-in inside the webapp: do not redirect users to Keycloak's login page. Put the sign-in form on the app's own domain and send credentials through its BFF to Galene's documented public tenant-auth API. Galene remains the identity authority; the app must not implement local identity or a service account. Follow [tenant authentication](references/tenant-authentication.md) for credential login and explicitly approved external tenant SSO.
+Keep tenant-user sign-in inside the webapp: do not redirect users to Keycloak's login page. Put the sign-in form on the app's own domain and send credentials through its BFF to Galene's documented public tenant-auth API. Galene remains the identity authority; the app must not implement local identity or a service account. Ask for a TOTP only after the public login response explicitly signals an MFA challenge in the verified target contract; a generic 401 or tenant auth configuration is not that signal. Follow [tenant authentication](references/tenant-authentication.md) for the exact flow.
+
+Treat the app as a standalone product under the app owner's or commissioning tenant's brand, and follow their supplied identity, colors, and design requirements. Do not present it as a Galene.ai product or add a G mark or “powered by Galene” label. When no explicit brand is supplied, use a neutral UI with a descriptive product name and no mandatory Galene platform colors. Do not impose a redesign.
 
 ## Required project decisions
 

@@ -15,7 +15,7 @@ After installation, start a new Codex task and invoke it with `$galeneai-faber`.
 
 ## Version and update policy
 
-The current skill release is **0.3.1**; its SemVer is in `skills/galeneai-faber/SKILL.md` metadata and the snapshot lock. It clarifies app-owned tenant login through the public Galene API. The release is independent of an app's SemVer and the Platform Core commit; this docs-only update leaves the Core contract baseline and exported schema/OpenAPI SHA-256 values unchanged.
+The current skill release is **0.3.2**; its SemVer is in `skills/galeneai-faber/SKILL.md` metadata and the snapshot lock. It clarifies challenge-driven MFA for app-owned tenant login and neutral default app branding. The release is independent of an app's SemVer and the Platform Core commit; this docs-only update leaves the Core contract baseline and exported schema/OpenAPI SHA-256 values unchanged.
 
 - PATCH fixes wording or tooling behavior without changing the workflow.
 - MINOR adds a compatible workflow or reference.

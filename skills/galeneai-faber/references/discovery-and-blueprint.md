@@ -2,6 +2,8 @@
 
 Use a short conversation to identify the work the app should make easier. Ask only for facts that affect the product: who uses it, what they do today, where the current process fails, which data the app handles, and what observable result would make the first release useful.
 
+Treat the app as a standalone product under the app owner's or commissioning tenant's brand, and follow their supplied identity, colors, and design requirements. Do not present it as a Galene.ai product or add a G mark or “powered by Galene” text. If no explicit brand is supplied, use a neutral interface with a descriptive product name and no mandatory Galene platform colors. Do not impose a redesign. Capture supplied design constraints in the existing project context or blueprint when they affect the requested app; this does not add a separate approval step.
+
 Every project must name a target tenant and environment, and choose one image registry:
 - an owner-managed external OCI registry;
 - Galene's integrated registry.
