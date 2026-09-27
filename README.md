@@ -15,7 +15,7 @@ After installation, start a new Codex task and invoke it with `$galeneai-faber`.
 
 ## Version and update policy
 
-The current skill release is **0.2.1**; its SemVer is in `skills/galeneai-faber/SKILL.md` metadata. It is independent of an app's SemVer and the Platform Core commit. The contract baseline and exported schema/OpenAPI SHA-256 values are in [snapshot-lock.json](skills/galeneai-faber/references/contracts/snapshot-lock.json).
+The current skill release is **0.3.0**; its SemVer is in `skills/galeneai-faber/SKILL.md` metadata and the snapshot lock. It adds a compatible application-delivery workflow and import verification guidance. The release is independent of an app's SemVer and the Platform Core commit; this docs-only update leaves the Core contract baseline and exported schema/OpenAPI SHA-256 values unchanged.
 
 - PATCH fixes wording or tooling behavior without changing the workflow.
 - MINOR adds a compatible workflow or reference.

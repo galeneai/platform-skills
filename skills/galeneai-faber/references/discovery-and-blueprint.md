@@ -24,6 +24,6 @@ State assumptions plainly. Do not turn the blueprint into a full technical dossi
 
 ## After approval
 
-Work vertically: behavior test, implementation, targeted check, then the next approved behavior. Prefer an early usable slice. Add deeper checks when a concrete risk appears, especially tenant isolation, role enforcement, secret handling, and migration data safety.
+Follow [application delivery](application-delivery.md): check the relevant public prerequisites, complete a small real user workflow, then expand coverage. Use focused tests for decision logic, tenant isolation, authorization, persistence, and migration safety; direct verification can be enough for simple UI or configuration changes. Run expensive corpus-wide acceptance after the workflow is stable, and repeat only the checks affected by a later fix.
 
 If the user has not authorized installation or has not named a tenant, keep the release bundle ready and ask for that missing decision before the install write.

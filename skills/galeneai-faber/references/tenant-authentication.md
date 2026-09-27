@@ -36,6 +36,8 @@ Prefer an app backend-for-frontend (BFF) to perform the code exchange server-to-
 
 Keep access and refresh tokens in the BFF's server-side session store. Give the browser an app-owned `Secure`, `HttpOnly`, appropriately `SameSite` session cookie. Protect cookie-authenticated state-changing routes against CSRF. Do not place OIDC tokens in URLs, manifests, app images, local storage, logs, or client-visible app configuration.
 
+A future JWT expiry does not prove that the IdP session is still valid: it may have been revoked. For long jobs, retain the initiating identity, handle refresh/revocation explicitly, and require reauthentication plus a deliberate retry when needed. Never silently substitute another user's identity. During QA, avoid changing the initiating browser identity while its job is active; use separate sessions for role checks.
+
 Configure the BFF with the explicit public Core API origin for the target. It must be able to reach both the tenant IdP token endpoint and the Core API from the selected Compose and Kubernetes adapters. The manifest's `connectivity` supports component `depends_on`; it has no outbound-host allowlist. Verify runtime network reachability on both adapters, and do not infer that one adapter's egress policy applies to the other.
 
 ## Call Core as the signed-in user
@@ -56,7 +58,7 @@ Use the following sequence for a tenant app that accepts a user's documents and 
 4. Search indexed content with `POST /rag/search` (`rag.search`) or the appropriate authorized vector-store search route. Per-user uploaded documents enter ingestion through the selected filesystem; configured knowledge-base connector sync is a separate tenant-admin workflow and keeps source credentials in Core.
 5. Ask the model through `POST /v1/chat/completions` (`inference.chat.create`), using the selected tenant model binding and only data the current user can access. A `session_id` may be used for persistence where supported by the target contract. Do not send provider credentials from the app.
 
-Before writing any request body, fetch `/openapi.json` from the exact target Core version and compare the operation, schema, and security requirements with the pinned baseline. If the deployment's commit cannot be established, an operation or schema differs, or an operation is absent, stop and refresh the contract snapshot or choose a documented route for that version. Do not guess payloads. This is especially important for session creation, multipart uploads, RAG search, and model requests.
+Before writing a request body, inspect the target's public `/openapi.json` for that operation, schema, and security requirements. Use the published skill snapshot for the routes it covers; it does not replace the tenant operation schemas. If a required operation is absent, incompatible, or its supported contract cannot be established, stop that slice and request the supported public contract/version from the platform operator. Do not guess payloads, change pinned hashes, or assume access to Core source. This is especially important for session creation, multipart uploads, RAG search, and model requests.
 
 ## Agent/session execution is a separate contract
 

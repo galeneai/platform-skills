@@ -42,6 +42,8 @@ Never assume that candidate IDs follow the order of command-line arguments. Read
 
 Core keeps registry credentials in server-side secret references. Import jobs access them only in a protected temporary auth file. Do not place registry credentials in app files, CLI arguments, examples, or logs. Use a verified source that already exists; creating one is a separate publisher action.
 
+After import completion, use [the offline import verifier](tooling.md#import-verification) with the manifest, a protected saved final-status response, and the intended full image references. Do not guess candidate IDs from archive order: choose the server-returned candidate whose reference and platform match each component. A successful offline check still requires a separate installation and tenant-runtime verification.
+
 ## Older Core snapshots
 
 Use only the routes and semantics present in the selected Core commit's snapshot. If a Core snapshot lacks multi-component mapping or atomic version-plus-availability publication, do not claim those guarantees or simulate one release with separate imports. For a multi-component app, use an owner-managed, verified external OCI source with immutable digest references, or defer publication. Use an older single-component import flow only for a genuinely single-component app when its pinned snapshot documents that flow.
