@@ -45,7 +45,7 @@ def server_validate(
         raise RuntimeError("Core validation request failed; check endpoint and network") from None
 
     if status == 404:
-        raise RuntimeError("server-side validator is not available on this Core version; refresh the pinned contract snapshot")
+        raise RuntimeError("server-side validator is not available on this Core version; ask the platform operator for a supported public contract/version")
     if status not in {200, 422}:
         raise RuntimeError(f"Core validation API returned HTTP {status}")
     try:
