@@ -9,7 +9,7 @@ metadata:
 
 Build an application as an independently released tenant product that uses Galene's public app manifest and APIs. Keep the app stack-free: its local doctor, validation, packaging, and tests must not require a running Galene Compose or Kubernetes stack.
 
-For tenant-user login, keep the sign-in form on the app's own domain and send credentials through its BFF to Galene's documented public tenant-auth API. Galene remains the identity authority; the app must not implement local identity or a service account. Follow [tenant authentication](references/tenant-authentication.md) for credential login and the explicit tenant-SSO exception.
+Keep tenant-user sign-in inside the webapp: do not redirect users to Keycloak's login page. Put the sign-in form on the app's own domain and send credentials through its BFF to Galene's documented public tenant-auth API. Galene remains the identity authority; the app must not implement local identity or a service account. Follow [tenant authentication](references/tenant-authentication.md) for credential login and explicitly approved external tenant SSO.
 
 ## Required project decisions
 
