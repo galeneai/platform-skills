@@ -2,12 +2,14 @@
 name: galeneai-faber
 description: Build standalone apps for Galene tenants from discovery and an approved blueprint through release and tenant installation. Use for tenant application projects, not for implementing Galene platform internals.
 metadata:
-  version: "0.3.0"
+  version: "0.3.1"
 ---
 
 # Galene.AI Faber
 
 Build an application as an independently released tenant product that uses Galene's public app manifest and APIs. Keep the app stack-free: its local doctor, validation, packaging, and tests must not require a running Galene Compose or Kubernetes stack.
+
+For tenant-user login, keep the sign-in form on the app's own domain and send credentials through its BFF to Galene's documented public tenant-auth API. Galene remains the identity authority; the app must not implement local identity or a service account. Follow [tenant authentication](references/tenant-authentication.md) for credential login and the explicit tenant-SSO exception.
 
 ## Required project decisions
 
