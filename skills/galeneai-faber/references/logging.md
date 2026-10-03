@@ -148,10 +148,9 @@ nginx access logs can follow the schema; the error log stays plain text. Run the
 ```nginx
 map $time_iso8601 $galene_time { "~^(?<t>.{19})" $t; }
 map $msec $galene_ms { "~\.(?<ms>\d{3})" $ms; }
-map $status $galene_level { ~^5 ERROR; ~^4 WARN; default INFO; }
 
 log_format galene escape=json
-  '{"timestamp":"$galene_time.${galene_ms}Z","level":"$galene_level","target":"web",'
+  '{"timestamp":"$galene_time.${galene_ms}Z","level":"INFO","target":"web",'
   '"message":"$request_method $uri $status","status":$status,"request_time":$request_time,'
   '"request_id":"$request_id","correlation_id":"$http_x_galene_correlation_id"}';
 
@@ -159,7 +158,7 @@ access_log /dev/stdout galene;
 error_log /dev/stderr warn;
 ```
 
-`$uri` excludes the query string, and `request_time` is in seconds. With the official image, set `NGINX_ENTRYPOINT_QUIET_LOGS=1` to silence its plain-text entrypoint lines. Forward `proxy_set_header X-Request-Id $request_id;` to the app so both components log the same `request_id`. Use `access_log off;` in the health-probe location.
+Access lines are `INFO` whatever the status, as in the platform; `status` carries the outcome. `$uri` excludes the query string, and `request_time` is in seconds. With the official image, set `NGINX_ENTRYPOINT_QUIET_LOGS=1` to silence its plain-text entrypoint lines. Forward `proxy_set_header X-Request-Id $request_id;` to the app so both components log the same `request_id`. Use `access_log off;` in the health-probe location.
 
 ## Other runtimes
 
