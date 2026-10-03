@@ -1,253 +1,1096 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://contracts.galene.ai/application-manifest/1.0/schema.json",
-  "title": "Galene tenant application manifest",
-  "description": "Public app manifest authoring contract curated from Platform Core a3026e0d7cfb09279765f7450476f040c85eb154. Direct version publication and integrated archive-import publication are separate flows. Server-side validation remains authoritative.",
-  "x-platform-core-commit": "a3026e0d7cfb09279765f7450476f040c85eb154",
-  "x-contract-snapshot": "snapshot-lock.json",
-  "type": "object",
-  "required": ["schema_version", "app", "components"],
-  "properties": {
-    "schema_version": { "const": "1.0" },
-    "app": { "$ref": "#/$defs/app" },
-    "components": {
-      "type": "array",
-      "minItems": 1,
-      "items": { "$ref": "#/$defs/component" }
-    },
-    "routes": { "type": "array", "items": { "$ref": "#/$defs/route" } },
-    "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capability" } },
-    "permissions": { "type": "array", "items": { "$ref": "#/$defs/permission" } },
-    "filesystem_resources": { "type": "array", "items": { "$ref": "#/$defs/filesystemResource" } },
-    "database_resources": { "type": "array", "items": { "$ref": "#/$defs/databaseResource" } },
-    "model_requirements": {
-      "anyOf": [
-        { "type": "array", "items": { "$ref": "#/$defs/modelRequirement" } },
-        { "type": "null" }
-      ]
-    },
-    "vfs": { "$ref": "#/$defs/vfs" },
-    "session_execution": {
-      "anyOf": [
-        { "$ref": "#/$defs/sessionExecution" },
-        { "type": "null" }
-      ]
-    },
-    "metadata": { "type": "object" }
-  },
   "$defs": {
-    "app": {
-      "type": "object",
-      "required": ["slug", "name"],
+    "ApplicationArchiveImportSpec": {
+      "description": "A temporary archive target, replaced with an immutable digest at publish.",
       "properties": {
-        "slug": { "type": "string", "minLength": 1 },
-        "name": { "type": "string", "minLength": 1 },
-        "requires_core": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
-      }
-    },
-    "envVar": {
-      "type": "object",
-      "required": ["name"],
-      "properties": {
-        "name": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
-        "required": { "type": "boolean", "default": false },
-        "sensitive": { "type": "boolean", "default": false },
-        "default": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
-        "description": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
-      },
-      "allOf": [
-        {
-          "if": { "properties": { "sensitive": { "const": true } }, "required": ["sensitive"] },
-          "then": { "properties": { "default": { "type": "null" } } }
+        "registry_source_id": {
+          "description": "Internal registry source that receives the image imported from the archive. Only accepted by archive import requests; the published version pins the image through `image_source` with its digest instead.",
+          "format": "uuid",
+          "title": "Registry Source Id",
+          "type": "string"
         }
-      ]
-    },
-    "health": {
-      "type": "object",
-      "properties": {
-        "readiness_path": { "anyOf": [{ "type": "string", "pattern": "^/[^?#]*$" }, { "type": "null" }] },
-        "liveness_path": { "anyOf": [{ "type": "string", "pattern": "^/[^?#]*$" }, { "type": "null" }] },
-        "initial_delay_seconds": { "type": "integer", "minimum": 0, "maximum": 300, "default": 5 },
-        "period_seconds": { "type": "integer", "minimum": 1, "maximum": 300, "default": 10 },
-        "timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 60, "default": 3 },
-        "failure_threshold": { "type": "integer", "minimum": 1, "maximum": 20, "default": 3 }
       },
-      "additionalProperties": false
-    },
-    "resources": {
-      "type": "object",
-      "properties": {
-        "cpu": { "anyOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }] },
-        "memory": { "anyOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }] }
-      },
-      "additionalProperties": false
-    },
-    "persistentVolume": {
-      "type": "object",
-      "required": ["size", "mount_path"],
-      "properties": {
-        "size": { "type": "string", "minLength": 1 },
-        "mount_path": { "type": "string", "pattern": "^/(?!$)" },
-        "storage_class": { "anyOf": [{ "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$" }, { "type": "null" }] },
-        "read_only": { "type": "boolean", "default": false }
-      },
-      "additionalProperties": false
-    },
-    "connectivity": {
-      "type": "object",
-      "properties": {
-        "depends_on": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
-      },
-      "additionalProperties": false
-    },
-    "imageSource": {
-      "type": "object",
-      "required": ["registry_source_id", "reference"],
-      "properties": {
-        "registry_source_id": { "type": "string", "format": "uuid" },
-        "repository": {
-          "anyOf": [
-            { "type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\s]+$" },
-            { "type": "null" }
-          ]
-        },
-        "reference": { "type": "string", "minLength": 1, "pattern": "^[^\\s/]+$" }
-      }
-    },
-    "archiveImport": {
-      "type": "object",
-      "required": ["registry_source_id"],
-      "properties": {
-        "registry_source_id": { "type": "string", "format": "uuid" }
-      }
-    },
-    "component": {
-      "type": "object",
-      "required": ["name", "kind"],
-      "properties": {
-        "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$" },
-        "kind": { "type": "string", "enum": ["frontend", "backend", "worker"] },
-        "image": { "type": "string", "pattern": "^[^\\s/]+(?:/[^\\s/:]+)+(?:[:@][^\\s]+)$" },
-        "image_source": { "$ref": "#/$defs/imageSource" },
-        "archive_import": { "$ref": "#/$defs/archiveImport" },
-        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
-        "command": { "type": "array", "items": { "type": "string" } },
-        "args": { "type": "array", "items": { "type": "string" } },
-        "health": { "$ref": "#/$defs/health" },
-        "resources": { "$ref": "#/$defs/resources" },
-        "persistent_volume": { "anyOf": [{ "$ref": "#/$defs/persistentVolume" }, { "type": "null" }] },
-        "connectivity": { "$ref": "#/$defs/connectivity" },
-        "env_schema": { "type": "array", "items": { "$ref": "#/$defs/envVar" } }
-      },
-      "allOf": [
-        {
-          "oneOf": [
-            { "required": ["image"], "not": { "anyOf": [{ "required": ["image_source"] }, { "required": ["archive_import"] }] } },
-            { "required": ["image_source"], "not": { "anyOf": [{ "required": ["image"] }, { "required": ["archive_import"] }] } },
-            { "required": ["archive_import"], "not": { "anyOf": [{ "required": ["image"] }, { "required": ["image_source"] }] } }
-          ]
-        },
-        {
-          "if": { "properties": { "kind": { "enum": ["frontend", "backend"] } }, "required": ["kind"] },
-          "then": { "required": ["port"] }
-        }
+      "required": [
+        "registry_source_id"
       ],
-      "additionalProperties": false
+      "title": "ApplicationArchiveImportSpec",
+      "type": "object"
     },
-    "route": {
-      "type": "object",
-      "required": ["component"],
+    "ApplicationAuthenticationSpec": {
+      "additionalProperties": false,
+      "description": "Browser authentication entry points exposed by the application.",
       "properties": {
-        "component": { "type": "string" },
-        "role": { "type": "string", "enum": ["frontend", "api", "webhook"], "default": "frontend" },
-        "host_required": { "type": "boolean", "default": true },
-        "public": { "type": "boolean", "default": true }
-      }
-    },
-    "capability": {
-      "type": "object",
-      "required": ["name"],
-      "properties": {
-        "name": { "type": "string", "enum": ["core_api", "identity_provider", "object_storage", "queue", "memory_db"] },
-        "required": { "type": "boolean", "default": false },
-        "target_components": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+        "login_path": {
+          "default": "/login",
+          "description": "Exact absolute frontend path that can receive browser authentication returns. It cannot contain an authority, query, fragment, percent-encoding, dot segments or backslashes. Default `/login`.",
+          "examples": [
+            "/login",
+            "/auth/sign-in"
+          ],
+          "title": "Login Path",
+          "type": "string"
+        }
       },
-      "additionalProperties": false
+      "title": "ApplicationAuthenticationSpec",
+      "type": "object"
     },
-    "permission": {
-      "type": "object",
-      "required": ["name"],
+    "ApplicationCapabilitySpec": {
+      "additionalProperties": false,
       "properties": {
         "name": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 64,
-          "pattern": "^(?!application\\.)(?!access$)[a-z][a-z0-9_-]*(?:\\.[a-z][a-z0-9_-]*)*$"
+          "description": "Platform capability: `core_api` (Galene Core API access), `identity_provider` (sign-in with the tenant identity provider; injects `GALENE_TENANT_IDP_*` and `GALENE_TENANT_AUTH_CONFIG_URL`), `object_storage` (a dedicated bucket; injects `APP_OBJECT_STORAGE_*`), `queue` (a Temporal namespace; injects `TEMPORAL_*`) or `memory_db` (a key-value store; injects `APP_MEMORY_DB_URL` and `APP_MEMORY_DB_KEY_PREFIX`). Core provisions a capability only when the installer approves it.",
+          "enum": [
+            "core_api",
+            "identity_provider",
+            "object_storage",
+            "queue",
+            "memory_db"
+          ],
+          "title": "Name",
+          "type": "string"
         },
-        "description": { "anyOf": [{ "type": "string", "maxLength": 500 }, { "type": "null" }] }
+        "required": {
+          "default": false,
+          "description": "Whether installers must approve the capability to install the application.",
+          "title": "Required",
+          "type": "boolean"
+        },
+        "target_components": {
+          "description": "Components that receive the capability's variables (unique names); every component when empty.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Target Components",
+          "type": "array"
+        }
       },
-      "additionalProperties": false
+      "required": [
+        "name"
+      ],
+      "title": "ApplicationCapabilitySpec",
+      "type": "object"
     },
-    "filesystemResource": {
-      "type": "object",
-      "required": ["name"],
-      "properties": {
-        "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$" },
-        "read_only": { "type": "boolean", "default": false },
-        "description": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
-      }
+    "ApplicationComponentKind": {
+      "enum": [
+        "frontend",
+        "backend",
+        "worker",
+        "job"
+      ],
+      "title": "ApplicationComponentKind",
+      "type": "string"
     },
-    "databaseResource": {
-      "type": "object",
-      "required": ["name"],
+    "ApplicationComponentSpec": {
+      "additionalProperties": false,
+      "description": "One container of the application.",
       "properties": {
-        "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$" },
-        "engine": { "type": "string", "const": "postgresql", "default": "postgresql" },
-        "extensions": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" }, "uniqueItems": true, "default": ["pgcrypto"] },
-        "target_components": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
-        "env_prefix": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "default": "APP_DB" },
-        "url_env": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "default": "DATABASE_URL" },
-        "retain_on_uninstall": { "type": "boolean", "default": true },
-        "description": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
-      }
-    },
-    "modelEnvTarget": {
-      "type": "object",
-      "required": ["component", "name"],
-      "properties": {
-        "component": { "type": "string" },
-        "name": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" }
+        "name": {
+          "description": "Component name: lowercase letters, digits and hyphens, starting with a letter or digit, at most 63 characters; unique in the manifest.",
+          "examples": [
+            "web"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ApplicationComponentKind",
+          "description": "`frontend` or `backend` (both need a `port`) or `worker`; `job` is not supported."
+        },
+        "image": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Container image with registry path and tag or digest, for example `registry.example.com/acme/helpdesk-web:1.4.0`. Exactly one of `image`, `image_source` and `archive_import` must be set.",
+          "examples": [
+            "registry.example.com/acme/helpdesk-web:1.4.0"
+          ],
+          "title": "Image"
+        },
+        "image_source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApplicationImageSourceSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Image taken from a configured registry source instead of a literal `image`."
+        },
+        "archive_import": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApplicationArchiveImportSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Image supplied by an archive import; only accepted by archive import requests."
+        },
+        "port": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Container port (1-65535) that receives traffic; required for `frontend` and `backend`.",
+          "examples": [
+            3000
+          ],
+          "title": "Port"
+        },
+        "command": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides the image entrypoint.",
+          "title": "Command"
+        },
+        "args": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides the image arguments.",
+          "title": "Args"
+        },
+        "health": {
+          "$ref": "#/$defs/ApplicationHealthSpec",
+          "description": "HTTP health probes."
+        },
+        "resources": {
+          "$ref": "#/$defs/ApplicationResourceSpec",
+          "description": "Resource sizing."
+        },
+        "persistent_volume": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApplicationPersistentVolumeSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Durable volume of the component, kept across upgrades, rollbacks and uninstall."
+        },
+        "connectivity": {
+          "$ref": "#/$defs/ApplicationConnectivitySpec",
+          "description": "Dependencies on other components."
+        },
+        "env_schema": {
+          "description": "Environment variables installers can or must set; names unique within the component.",
+          "items": {
+            "$ref": "#/$defs/ApplicationEnvVarSpec"
+          },
+          "title": "Env Schema",
+          "type": "array"
+        }
       },
-      "additionalProperties": false
+      "required": [
+        "name",
+        "kind"
+      ],
+      "title": "ApplicationComponentSpec",
+      "type": "object"
     },
-    "modelRequirement": {
-      "type": "object",
-      "required": ["role", "slot"],
+    "ApplicationConnectivitySpec": {
+      "additionalProperties": false,
+      "description": "Declared local component dependencies.",
       "properties": {
-        "role": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,62}$" },
-        "slot": { "type": "string", "enum": ["llm", "embedding"] },
-        "requirement": { "type": "string", "enum": ["required", "optional"], "default": "required" },
-        "capabilities": { "type": "array", "items": { "type": "string", "enum": ["chat", "embedding"] }, "uniqueItems": true },
-        "input_modalities": { "type": "array", "minItems": 1, "items": { "type": "string", "enum": ["text", "image"] }, "uniqueItems": true, "default": ["text"] },
-        "env": { "type": "array", "items": { "$ref": "#/$defs/modelEnvTarget" } }
+        "depends_on": {
+          "description": "Other components of the manifest this component depends on; unique names, not itself.",
+          "examples": [
+            [
+              "api"
+            ]
+          ],
+          "items": {
+            "type": "string"
+          },
+          "title": "Depends On",
+          "type": "array"
+        }
       },
-      "additionalProperties": false
+      "title": "ApplicationConnectivitySpec",
+      "type": "object"
+    },
+    "ApplicationDatabaseResourceSpec": {
+      "description": "A PostgreSQL database that Core provisions for the application.",
+      "properties": {
+        "name": {
+          "description": "Resource name: lowercase letters, digits and hyphens, unique in the manifest.",
+          "examples": [
+            "main"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "engine": {
+          "const": "postgresql",
+          "default": "postgresql",
+          "description": "Database engine; only `postgresql`.",
+          "title": "Engine",
+          "type": "string"
+        },
+        "extensions": {
+          "description": "PostgreSQL extensions to enable (unique identifiers). Default `[\"pgcrypto\"]`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Extensions",
+          "type": "array"
+        },
+        "target_components": {
+          "description": "Components that receive the connection variables (unique names). When empty, the `backend` and `worker` components receive them, or every component when the manifest has none.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Target Components",
+          "type": "array"
+        },
+        "env_prefix": {
+          "default": "APP_DB",
+          "description": "Prefix of the injected `<prefix>_HOST`, `<prefix>_PORT`, `<prefix>_NAME`, `<prefix>_USER` and `<prefix>_PASSWORD` variables. Default `APP_DB`.",
+          "examples": [
+            "HELPDESK_DB"
+          ],
+          "title": "Env Prefix",
+          "type": "string"
+        },
+        "url_env": {
+          "default": "DATABASE_URL",
+          "description": "Variable that receives the connection URL. Default `DATABASE_URL`.",
+          "examples": [
+            "HELPDESK_DATABASE_URL"
+          ],
+          "title": "Url Env",
+          "type": "string"
+        },
+        "retain_on_uninstall": {
+          "default": true,
+          "description": "Keep the database when the application is uninstalled. Default true.",
+          "title": "Retain On Uninstall",
+          "type": "boolean"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Description of the resource.",
+          "title": "Description"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ApplicationDatabaseResourceSpec",
+      "type": "object"
+    },
+    "ApplicationEnvVarSpec": {
+      "description": "An environment variable of a component that installers can or must set.",
+      "properties": {
+        "name": {
+          "description": "Variable name: letters, digits and underscores, not starting with a digit; unique within the component. Names generated by Core for capabilities, databases and model roles cannot be supplied by installers.",
+          "examples": [
+            "SUPPORT_EMAIL"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "required": {
+          "default": false,
+          "description": "Whether installers must supply a value when there is no `default`.",
+          "title": "Required",
+          "type": "boolean"
+        },
+        "sensitive": {
+          "default": false,
+          "description": "Whether the value is a secret: installers send it as `secret_value`, it is kept in the secret store and never returned. Sensitive variables cannot have a `default`.",
+          "title": "Sensitive",
+          "type": "boolean"
+        },
+        "default": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Value used when the installer supplies none.",
+          "title": "Default"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Help text shown to installers.",
+          "title": "Description"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ApplicationEnvVarSpec",
+      "type": "object"
+    },
+    "ApplicationFilesystemResourceSpec": {
+      "description": "A filesystem the application uses.",
+      "properties": {
+        "name": {
+          "description": "Resource name: lowercase letters, digits and hyphens, unique in the manifest.",
+          "examples": [
+            "attachments"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "read_only": {
+          "default": false,
+          "description": "Whether the application only reads the filesystem.",
+          "title": "Read Only",
+          "type": "boolean"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Description of the resource.",
+          "title": "Description"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ApplicationFilesystemResourceSpec",
+      "type": "object"
+    },
+    "ApplicationHealthSpec": {
+      "additionalProperties": false,
+      "description": "HTTP health probes of a component.",
+      "properties": {
+        "readiness_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Absolute HTTP path of the readiness probe, without query or fragment.",
+          "examples": [
+            "/healthz"
+          ],
+          "title": "Readiness Path"
+        },
+        "liveness_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Absolute HTTP path of the liveness probe, without query or fragment.",
+          "examples": [
+            "/livez"
+          ],
+          "title": "Liveness Path"
+        },
+        "initial_delay_seconds": {
+          "default": 5,
+          "description": "Seconds before the first probe (0-300).",
+          "maximum": 300,
+          "minimum": 0,
+          "title": "Initial Delay Seconds",
+          "type": "integer"
+        },
+        "period_seconds": {
+          "default": 10,
+          "description": "Seconds between probes (1-300).",
+          "maximum": 300,
+          "minimum": 1,
+          "title": "Period Seconds",
+          "type": "integer"
+        },
+        "timeout_seconds": {
+          "default": 3,
+          "description": "Probe timeout in seconds (1-60).",
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Timeout Seconds",
+          "type": "integer"
+        },
+        "failure_threshold": {
+          "default": 3,
+          "description": "Consecutive failures before the probe fails (1-20).",
+          "maximum": 20,
+          "minimum": 1,
+          "title": "Failure Threshold",
+          "type": "integer"
+        }
+      },
+      "title": "ApplicationHealthSpec",
+      "type": "object"
+    },
+    "ApplicationImageSourceSpec": {
+      "description": "A registry-source selection retained in an immutable application manifest.",
+      "properties": {
+        "registry_source_id": {
+          "description": "Registry source that holds the image (see `GET /controlplane/registry-sources`).",
+          "format": "uuid",
+          "title": "Registry Source Id",
+          "type": "string"
+        },
+        "repository": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "External sources: repository path inside the registry, for example `example-apps/helpdesk-web`. Must be omitted for the internal registry, whose tenant repositories are managed by the platform.",
+          "examples": [
+            "example-apps/helpdesk-web"
+          ],
+          "title": "Repository"
+        },
+        "reference": {
+          "description": "Image tag or digest, for example `1.4.0` or `sha256:<64 hex digits>`. Images of the internal registry must be referenced by `sha256:` digest.",
+          "examples": [
+            "1.4.0"
+          ],
+          "title": "Reference",
+          "type": "string"
+        }
+      },
+      "required": [
+        "registry_source_id",
+        "reference"
+      ],
+      "title": "ApplicationImageSourceSpec",
+      "type": "object"
+    },
+    "ApplicationManifestAppSpec": {
+      "description": "Identity of the application.",
+      "properties": {
+        "slug": {
+          "description": "Package slug; it must equal the slug of the package.",
+          "examples": [
+            "helpdesk"
+          ],
+          "title": "Slug",
+          "type": "string"
+        },
+        "name": {
+          "description": "Display name of the application.",
+          "examples": [
+            "Helpdesk"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "requires_core": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Informational Core version constraint, copied to the version's `requires_core`.",
+          "examples": [
+            ">=1.2.0"
+          ],
+          "title": "Requires Core"
+        }
+      },
+      "required": [
+        "slug",
+        "name"
+      ],
+      "title": "ApplicationManifestAppSpec",
+      "type": "object"
+    },
+    "ApplicationModelEnvTarget": {
+      "additionalProperties": false,
+      "description": "A component variable that receives the model selected for a role.",
+      "properties": {
+        "component": {
+          "description": "Component that declares the variable.",
+          "examples": [
+            "web"
+          ],
+          "title": "Component",
+          "type": "string"
+        },
+        "name": {
+          "description": "Variable declared in that component's `env_schema`, not sensitive and without a default; it receives the selected `provider:model` id.",
+          "examples": [
+            "HELPDESK_MODEL_ID"
+          ],
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "component",
+        "name"
+      ],
+      "title": "ApplicationModelEnvTarget",
+      "type": "object"
+    },
+    "ApplicationModelRequirement": {
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "description": "Role name, unique in the manifest: a lowercase letter followed by up to 62 lowercase letters, digits, `_` or `-`.",
+          "examples": [
+            "assistant"
+          ],
+          "pattern": "^[a-z][a-z0-9_-]{0,62}$",
+          "title": "Role",
+          "type": "string"
+        },
+        "slot": {
+          "description": "`llm` for a chat model or `embedding`.",
+          "enum": [
+            "llm",
+            "embedding"
+          ],
+          "title": "Slot",
+          "type": "string"
+        },
+        "requirement": {
+          "default": "required",
+          "description": "`required` (default) or `optional`.",
+          "enum": [
+            "required",
+            "optional"
+          ],
+          "title": "Requirement",
+          "type": "string"
+        },
+        "capabilities": {
+          "description": "Model capabilities the role needs, unique; they must include the slot's capability (`chat` or `embedding`), which is also the default.",
+          "items": {
+            "enum": [
+              "chat",
+              "embedding"
+            ],
+            "type": "string"
+          },
+          "title": "Capabilities",
+          "type": "array"
+        },
+        "input_modalities": {
+          "description": "Input modalities the model must accept, unique and including `text`. Default `[\"text\"]`.",
+          "items": {
+            "enum": [
+              "text",
+              "image"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Input Modalities",
+          "type": "array"
+        },
+        "env": {
+          "description": "Component variables that receive the selected model id.",
+          "items": {
+            "$ref": "#/$defs/ApplicationModelEnvTarget"
+          },
+          "title": "Env",
+          "type": "array"
+        }
+      },
+      "required": [
+        "role",
+        "slot"
+      ],
+      "title": "ApplicationModelRequirement",
+      "type": "object"
+    },
+    "ApplicationPermissionSpec": {
+      "additionalProperties": false,
+      "description": "One client-enforced application action permission.",
+      "properties": {
+        "name": {
+          "description": "Permission key: dot-separated lowercase segments of letters, digits, `_` and `-`, each starting with a letter, for example `tickets.assign`. `access` and names starting with `application.` are reserved. Tenant administrators bind it to tenant roles; the application enforces it.",
+          "examples": [
+            "tickets.assign"
+          ],
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Description shown to tenant administrators (at most 500 characters).",
+          "examples": [
+            "Assign tickets to agents"
+          ],
+          "title": "Description"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ApplicationPermissionSpec",
+      "type": "object"
+    },
+    "ApplicationPersistentVolumeSpec": {
+      "additionalProperties": false,
+      "description": "One component-local durable volume.\n\nRuntime adapters retain this claim across application upgrades, rollbacks,\nand uninstall. Storage-class selection is intentionally platform-owned.",
+      "properties": {
+        "size": {
+          "description": "Volume size in Kubernetes notation, for example `10Gi`.",
+          "examples": [
+            "10Gi"
+          ],
+          "title": "Size",
+          "type": "string"
+        },
+        "mount_path": {
+          "description": "Absolute mount path inside the container; `/` is not allowed.",
+          "examples": [
+            "/var/lib/helpdesk"
+          ],
+          "title": "Mount Path",
+          "type": "string"
+        },
+        "storage_class": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional storage class name (a DNS label).",
+          "examples": [
+            "standard"
+          ],
+          "title": "Storage Class"
+        },
+        "read_only": {
+          "default": false,
+          "description": "Mount the volume read-only.",
+          "title": "Read Only",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "size",
+        "mount_path"
+      ],
+      "title": "ApplicationPersistentVolumeSpec",
+      "type": "object"
+    },
+    "ApplicationResourceSpec": {
+      "additionalProperties": false,
+      "description": "Resource sizing of a component.",
+      "properties": {
+        "cpu": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "CPU quantity in Kubernetes notation, for example `500m`.",
+          "examples": [
+            "500m"
+          ],
+          "title": "Cpu"
+        },
+        "memory": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Memory quantity in Kubernetes notation, for example `512Mi`.",
+          "examples": [
+            "512Mi"
+          ],
+          "title": "Memory"
+        }
+      },
+      "title": "ApplicationResourceSpec",
+      "type": "object"
+    },
+    "ApplicationRouteSpec": {
+      "description": "A component reachable through a hostname binding.",
+      "properties": {
+        "component": {
+          "description": "Component the route targets; it must be declared in `components`.",
+          "examples": [
+            "web"
+          ],
+          "title": "Component",
+          "type": "string"
+        },
+        "role": {
+          "default": "frontend",
+          "description": "Route role: `frontend` (default), `api` or `webhook`.",
+          "enum": [
+            "frontend",
+            "api",
+            "webhook"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "host_required": {
+          "default": true,
+          "description": "Whether installers must bind a hostname to this route; the control-plane deployment wizard enforces it. Default true.",
+          "title": "Host Required",
+          "type": "boolean"
+        },
+        "public": {
+          "default": true,
+          "description": "Whether the route is meant to be public. Default true.",
+          "title": "Public",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "component"
+      ],
+      "title": "ApplicationRouteSpec",
+      "type": "object"
+    },
+    "ApplicationSessionExecutionSpec": {
+      "description": "Optional application participant in durable session execution.",
+      "properties": {
+        "component": {
+          "description": "Backend component with a `port` that takes part in session execution. It must declare `ASSISTANT_SESSION_EXECUTION_ASSERTION_KEY` (sensitive) and `ASSISTANT_SESSION_EXECUTION_INSTALLATION_ID` in its `env_schema`; Core provisions both at installation.",
+          "title": "Component",
+          "type": "string"
+        },
+        "protocol_version": {
+          "default": 1,
+          "description": "Session execution protocol version, 1 (default) or 2.",
+          "enum": [
+            1,
+            2
+          ],
+          "title": "Protocol Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "component"
+      ],
+      "title": "ApplicationSessionExecutionSpec",
+      "type": "object"
+    },
+    "ApplicationVfsSpec": {
+      "description": "Virtual-filesystem defaults declared by the application.",
+      "properties": {
+        "default_base_path": {
+          "default": "/workspace",
+          "description": "Default sandbox base path: a normalized, non-root absolute path. Default `/workspace`.",
+          "title": "Default Base Path",
+          "type": "string"
+        },
+        "changeset_retention_days": {
+          "default": 30,
+          "description": "Days changesets are kept (at least 1).",
+          "minimum": 1,
+          "title": "Changeset Retention Days",
+          "type": "integer"
+        },
+        "changeset_retention_count": {
+          "default": 100,
+          "description": "Maximum number of changesets kept (at least 1).",
+          "minimum": 1,
+          "title": "Changeset Retention Count",
+          "type": "integer"
+        }
+      },
+      "title": "ApplicationVfsSpec",
+      "type": "object"
+    }
+  },
+  "description": "Public application manifest schema exported from Platform Core 79b539964a577304a88aac2477a41e092a4b169d. Server-side validation remains authoritative.",
+  "examples": [
+    {
+      "app": {
+        "name": "Helpdesk",
+        "requires_core": ">=1.2.0",
+        "slug": "helpdesk"
+      },
+      "authentication": {
+        "login_path": "/login"
+      },
+      "capabilities": [
+        {
+          "name": "core_api",
+          "required": true
+        }
+      ],
+      "components": [
+        {
+          "env_schema": [
+            {
+              "description": "Sender of ticket notifications.",
+              "name": "SUPPORT_EMAIL",
+              "required": true
+            },
+            {
+              "name": "SMTP_PASSWORD",
+              "sensitive": true
+            },
+            {
+              "name": "HELPDESK_MODEL_ID"
+            }
+          ],
+          "health": {
+            "readiness_path": "/healthz"
+          },
+          "image": "registry.example.com/acme/helpdesk-web:1.4.0",
+          "kind": "frontend",
+          "name": "web",
+          "port": 3000,
+          "resources": {
+            "cpu": "500m",
+            "memory": "512Mi"
+          }
+        }
+      ],
+      "database_resources": [
+        {
+          "env_prefix": "HELPDESK_DB",
+          "name": "main",
+          "target_components": [
+            "web"
+          ],
+          "url_env": "HELPDESK_DATABASE_URL"
+        }
+      ],
+      "metadata": {
+        "accent_color": "#1f6feb"
+      },
+      "model_requirements": [
+        {
+          "env": [
+            {
+              "component": "web",
+              "name": "HELPDESK_MODEL_ID"
+            }
+          ],
+          "role": "assistant",
+          "slot": "llm"
+        }
+      ],
+      "permissions": [
+        {
+          "description": "Assign tickets to agents",
+          "name": "tickets.assign"
+        }
+      ],
+      "routes": [
+        {
+          "component": "web",
+          "role": "frontend"
+        }
+      ],
+      "schema_version": "1.0"
+    }
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "description": "Manifest schema version; only `1.0`.",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "app": {
+      "$ref": "#/$defs/ApplicationManifestAppSpec"
+    },
+    "components": {
+      "description": "Containers of the application: at least one, with unique names.",
+      "items": {
+        "$ref": "#/$defs/ApplicationComponentSpec"
+      },
+      "title": "Components",
+      "type": "array"
+    },
+    "routes": {
+      "description": "Components reachable through hostname bindings.",
+      "items": {
+        "$ref": "#/$defs/ApplicationRouteSpec"
+      },
+      "title": "Routes",
+      "type": "array"
+    },
+    "authentication": {
+      "$ref": "#/$defs/ApplicationAuthenticationSpec",
+      "description": "Browser authentication entry points. Existing manifests default to a `/login` return path."
+    },
+    "capabilities": {
+      "description": "Platform capabilities the application asks for, unique by name.",
+      "items": {
+        "$ref": "#/$defs/ApplicationCapabilitySpec"
+      },
+      "title": "Capabilities",
+      "type": "array"
+    },
+    "permissions": {
+      "description": "Action permissions of the application, unique by name. Core also creates the `access` permission that controls who sees the application.",
+      "items": {
+        "$ref": "#/$defs/ApplicationPermissionSpec"
+      },
+      "title": "Permissions",
+      "type": "array"
+    },
+    "filesystem_resources": {
+      "description": "Filesystems the application uses, unique by name.",
+      "items": {
+        "$ref": "#/$defs/ApplicationFilesystemResourceSpec"
+      },
+      "title": "Filesystem Resources",
+      "type": "array"
+    },
+    "database_resources": {
+      "description": "PostgreSQL databases Core provisions for the application, unique by name.",
+      "items": {
+        "$ref": "#/$defs/ApplicationDatabaseResourceSpec"
+      },
+      "title": "Database Resources",
+      "type": "array"
+    },
+    "model_requirements": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/ApplicationModelRequirement"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "AI model roles the application needs, unique by role.",
+      "title": "Model Requirements"
     },
     "vfs": {
-      "type": "object",
-      "properties": {
-        "default_base_path": { "type": "string", "minLength": 1, "default": "/workspace" },
-        "changeset_retention_days": { "type": "integer", "minimum": 1, "default": 30 },
-        "changeset_retention_count": { "type": "integer", "minimum": 1, "default": 100 }
-      }
+      "$ref": "#/$defs/ApplicationVfsSpec",
+      "description": "Virtual-filesystem defaults."
     },
-    "sessionExecution": {
-      "type": "object",
-      "required": ["component"],
-      "properties": {
-        "component": { "type": "string" },
-        "protocol_version": { "type": "integer", "enum": [1, 2], "default": 1 }
-      }
+    "session_execution": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ApplicationSessionExecutionSpec"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Component that takes part in durable session execution, if any."
+    },
+    "metadata": {
+      "additionalProperties": true,
+      "description": "Free-form metadata. The tenant application launcher reads `icon` and `accent_color` from it.",
+      "title": "Metadata",
+      "type": "object"
     }
-  }
+  },
+  "required": [
+    "app",
+    "components"
+  ],
+  "title": "Galene tenant application manifest",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.galene.ai/application-manifest/1.0/schema.json",
+  "x-platform-core-commit": "79b539964a577304a88aac2477a41e092a4b169d",
+  "x-contract-snapshot": "snapshot-lock.json"
 }
