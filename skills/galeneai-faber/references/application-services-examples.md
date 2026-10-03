@@ -36,6 +36,8 @@ Merge these fields into an ordinary manifest with named `backend` and `worker` c
 }
 ```
 
+An optional title feature can instead add `{"role":"title","slot":"llm","requirement":"optional","capabilities":["chat"],"input_modalities":["text"]}` to `model_requirements`. Give it an app-owned feature state when no authorized binding is ready; do not silently substitute an arbitrary model or turn it into an installation blocker.
+
 Do not declare the generated service token/deployment/context env variables in either component's `env_schema`. Model bindings are selected through the installation model-role controls; declaring a model role does not approve inference service access.
 
 ## Installation selection
@@ -108,8 +110,10 @@ Extraction/OCR/indexing creates or updates tracked processing metadata and needs
 ```
 
 ```json
-{"service_role":"reasoning","operation":"chat","arguments":{"model_role":"writer","messages":[{"role":"user","content":"Summarize this approved text."}],"max_tokens":512}}
+{"service_role":"reasoning","operation":"chat","arguments":{"model_role":"writer","messages":[{"role":"user","content":"Summarize this approved text."}],"max_tokens":512,"disable_reasoning_if_supported":true}}
 ```
+
+The flag requests reasoning off only when the currently resolved model supports it. Check the returned `text` and `finish_reason`; do not accept an empty or truncated response as the intended answer.
 
 ```json
 {"service_role":"reasoning","operation":"embedding","arguments":{"model_role":"vectors","input":["approved text"]}}

@@ -1240,6 +1240,6 @@
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.galene.ai/application-manifest/1.0/schema.json",
-  "x-platform-core-commit": "209ceabe4f0707f2b62b090d159d4e9fc4f2bbd0",
+  "x-platform-core-commit": "2d494cc2406de24b1c68d904c83e655d30e5a7e4",
   "x-contract-snapshot": "snapshot-lock.json"
 }
