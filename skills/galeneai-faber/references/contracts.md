@@ -9,6 +9,8 @@ Use the contract files in [contracts/](contracts/) as the public authoring refer
 
 The lock pins Platform Core commit `a3026e0d7cfb09279765f7450476f040c85eb154`. These files are versioned contract artifacts; they contain no platform implementation code.
 
+For the exact target's public OpenAPI URL, follow [API discovery](api-discovery.md), including Console, Control Plane and app runtime configuration. Keep its downloaded JSON separate from the pinned files below.
+
 **App builders:** use this published snapshot as the authoring baseline and compare only the relevant operations with the target's public `/openapi.json`. A missing or changed operation is a stop condition for that slice: do not guess a request shape or edit the pinned hashes from an app checkout. Give a minimal sanitized diagnosis and ask the responsible platform operator for the supported contract/version or prerequisite. A Core checkout is not required for app development.
 
 **Skill maintainers:** refreshing a pinned snapshot is separate maintenance work. Verify the exact Core source revision and exported contract artifacts before updating the snapshot and source-file hashes; then update the app compatibility matrix for that new baseline. Never use an unverified source or infer a new hash from a target response. The package tool rejects a compatibility record that does not match the published pinned artifacts.

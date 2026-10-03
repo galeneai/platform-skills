@@ -2,14 +2,14 @@
 name: galeneai-faber
 description: Build standalone apps for Galene tenants from discovery and an approved blueprint through release and tenant installation. Use for tenant application projects, not for implementing Galene platform internals.
 metadata:
-  version: "0.3.2"
+  version: "0.4.0"
 ---
 
 # Galene.AI Faber
 
 Build an application as an independently released tenant product that uses Galene's public app manifest and APIs. Keep the app stack-free: its local doctor, validation, packaging, and tests must not require a running Galene Compose or Kubernetes stack.
 
-Keep tenant-user sign-in inside the webapp: do not redirect users to Keycloak's login page. Put the sign-in form on the app's own domain and send credentials through its BFF to Galene's documented public tenant-auth API. Galene remains the identity authority; the app must not implement local identity or a service account. Ask for a TOTP only after the public login response explicitly signals an MFA challenge in the verified target contract; a generic 401 or tenant auth configuration is not that signal. Follow [tenant authentication](references/tenant-authentication.md) for the exact flow.
+Keep tenant-user sign-in inside the webapp: do not redirect users to Keycloak's login page. Put the sign-in form on the app's own domain and send credentials through its BFF to Galene's documented public tenant-auth API. Galene remains the identity authority; the app must not implement local identity or a service account. Ask for a TOTP only after the public login response explicitly signals an MFA challenge in the verified target contract; a generic 401 or tenant auth configuration is not that signal. Always load the tenant's public auth configuration: show its enabled SSO connectors alongside credentials, respect credential-login disablement, and offer the configured password-recovery flow or a verified tenant Console fallback. Follow [tenant authentication](references/tenant-authentication.md) for the exact flow and [Next.js/Python examples](references/auth-examples.md) when implementing it.
 
 Treat the app as a standalone product under the app owner's or commissioning tenant's brand, and follow their supplied identity, colors, and design requirements. Do not present it as a Galene.ai product or add a G mark or “powered by Galene” label. When no explicit brand is supplied, use a neutral UI with a descriptive product name and no mandatory Galene platform colors. Do not impose a redesign.
 
@@ -26,7 +26,7 @@ Do not infer either from credentials, an existing workspace, or an earlier app. 
 
 1. Read [discovery and blueprint](references/discovery-and-blueprint.md). Understand the business need, user, current workflow, and observable acceptance result. Produce a short blueprint and wait for the user to approve it before implementation.
 2. Consult [the Galene feature map](references/platform-feature-map.md) only for features relevant to the approved app. Choose public app contracts and tenant capabilities; do not add native Galene code or rely on internal database access. For individual tenant sign-in, user-delegated API calls, or agent/session participation, also read [tenant authentication](references/tenant-authentication.md).
-3. Before writing a manifest, using app APIs, or packaging a release, read [contracts and snapshots](references/contracts.md). Treat the pinned snapshot as the contract at its recorded Platform Core commit. Local validation helps authoring; Core remains authoritative at publication.
+3. Before writing a manifest, using app APIs, or packaging a release, read [contracts and snapshots](references/contracts.md). Treat the pinned snapshot as the contract at its recorded Platform Core commit. When only a tenant Console, Control Plane or application URL is available, read [API discovery](references/api-discovery.md) to resolve the public Core API base from runtime configuration and fetch that target's OpenAPI JSON; do not guess API hosts. Local validation helps authoring; Core remains authoritative at publication.
 4. After blueprint approval, read [application delivery](references/application-delivery.md). Preflight the public contracts and tenant prerequisites, then build the smallest real user workflow end to end. Verify the behavior and its concrete risks; avoid tests that only duplicate implementation details. Ask for a new approval only when a requirement must expand beyond the approved blueprint.
 5. Read [security and release](references/security-release.md) before declaring capabilities, database resources, secrets, or release versions. If integrated registry was selected, also read [integrated registry status](references/integrated-registry.md); do not promise multi-component atomic import until its final API is in a committed snapshot.
 6. Use the stack-free tools described in [tooling](references/tooling.md), then follow [publish, availability, and install](references/publish-install.md) to release and install the app. Verify the tenant-visible deployment state when that action is in scope.
@@ -46,6 +46,8 @@ Do not infer either from credentials, an existing workspace, or an earlier app. 
 - Read [application delivery](references/application-delivery.md) after blueprint approval for preflight, the first end-to-end slice, targeted verification, and release readiness.
 - Read [the Galene feature map](references/platform-feature-map.md) when choosing Core, models, ingestion, browsing, sandbox, knowledge-base, or connector integration.
 - Read [tenant authentication](references/tenant-authentication.md) when an app authenticates tenant users, calls Core as a user, or participates in agent/session execution.
+- Read [API discovery](references/api-discovery.md) when resolving the Core API/OpenAPI from a Console, Control Plane or application URL.
+- Read [Next.js/Python auth examples](references/auth-examples.md) when building a webapp sign-in, SSO callback or password-recovery entry point.
 - Read [contracts and snapshots](references/contracts.md) when shaping a manifest or calling a published app API.
 - Read [security and release](references/security-release.md) when an app handles tenant data, capabilities, app databases, registry images, or installation.
 - Read [integrated registry status](references/integrated-registry.md) only if integrated registry import is selected or discussed.

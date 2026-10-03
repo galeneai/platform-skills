@@ -15,13 +15,13 @@ After installation, start a new Codex task and invoke it with `$galeneai-faber`.
 
 ## Version and update policy
 
-The current skill release is **0.3.2**; its SemVer is in `skills/galeneai-faber/SKILL.md` metadata and the snapshot lock. It clarifies challenge-driven MFA for app-owned tenant login and neutral default app branding. The release is independent of an app's SemVer and the Platform Core commit; this docs-only update leaves the Core contract baseline and exported schema/OpenAPI SHA-256 values unchanged.
+The current skill release is **0.4.0**; its SemVer is in `skills/galeneai-faber/SKILL.md` metadata and the snapshot lock. It adds config-driven SSO and password-recovery guidance, reusable Next.js/Python auth examples, and public Core API/OpenAPI discovery from Console, Control Plane or app URLs. The release is independent of an app's SemVer and the Platform Core commit; this skill/reference/tooling update leaves the Core contract baseline and exported schema/OpenAPI SHA-256 values unchanged.
 
 - PATCH fixes wording or tooling behavior without changing the workflow.
 - MINOR adds a compatible workflow or reference.
 - MAJOR changes required behavior or an assumed public contract.
 
-When public Core contracts change, inspect the exact committed Core revision, refresh only affected snapshots and source hashes, update the lock's Core commit and skill version, and review the compatibility example. Do not copy native Core implementation into this repository. For a docs-only update, keep the Core snapshot unchanged and bump the skill version as appropriate.
+When public Core contracts change, inspect the exact committed Core revision, refresh only affected snapshots and source hashes, update the lock's Core commit and skill version, and review the compatibility example. Do not copy native Core implementation into this repository. For a skill, documentation or tooling update that does not refresh Core contracts, keep the Core snapshot unchanged and bump the skill version as appropriate.
 
 ## Checks
 
@@ -31,5 +31,13 @@ The app-builder tooling and unit tests are stack-free. Install its small Python 
 python3 -m pip install -r skills/galeneai-faber/scripts/requirements.txt
 python3 -m unittest discover -s skills/galeneai-faber/tests -v
 ```
+
+The auth example has separate checks using the app's FastAPI/httpx dependencies:
+
+```sh
+python3 -m unittest discover -s skills/galeneai-faber/assets/auth/python -v
+```
+
+The Next.js page can be type-checked in an app with React/TypeScript. See [auth integration examples](skills/galeneai-faber/references/auth-examples.md) for the required session/store adapters and target SSO/recovery limitations.
 
 These checks do not validate deployment behavior; app projects must verify the relevant behavior on each supported Compose and Kubernetes adapter.

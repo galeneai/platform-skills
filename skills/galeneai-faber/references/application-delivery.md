@@ -31,6 +31,8 @@ For model output, validate the expected structure and length. If a response is t
 
 Verify directly through the app UI and public API/configuration surfaces: permissions, source selection, loading and error states, persisted decisions after refresh, and the actual exported bytes and metadata. A browser download is verified only when the resulting file is received and can be inspected, not when the button merely appears to respond.
 
+For webapp auth, verify configured provider visibility and ordering, credential disablement/SSO-only state, the supported SSO start/callback/exchange and rejected replay/wrong-browser state. Verify password recovery through the documented enabled flow or the operator-confirmed Console fallback; do not claim email delivery or app SSO when only a link/fixture was checked. Read [auth examples](auth-examples.md) for target prerequisites.
+
 For credential sign-in, verify the initial username/password attempt does not request or send a TOTP. Verify the second step only when the selected target's public response explicitly signals an MFA challenge for that user; a generic 401 or tenant-wide MFA setting is not sufficient evidence. If the challenge contract or a suitable test identity is unavailable, report that behavior as unverified rather than weakening or guessing the flow.
 
 Add focused tests for concrete risks such as tenant isolation, authorization, decision logic, persistence, or migration safety. Direct verification can be enough for simple UI or configuration changes. Prefer representative fixtures and observable behavior over tests that copy the implementation line by line. Keep one concise acceptance checklist for the approved workflow; avoid creating a second test dossier or a parallel certification record.
