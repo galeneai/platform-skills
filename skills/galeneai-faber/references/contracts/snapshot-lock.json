@@ -1,20 +1,20 @@
 {
   "snapshot_version": 1,
-  "skill_version": "0.7.1",
+  "skill_version": "0.7.2",
   "source": {
     "repository": "galeneai/platform-core",
     "ref": "commit",
-    "commit": "2d494cc2406de24b1c68d904c83e655d30e5a7e4",
+    "commit": "381114016d3baac9b4634cb39e74feca6c9eab05",
     "captured_date": "2026-10-03"
   },
   "contracts": {
     "application_manifest_json_schema": {
       "path": "application-manifest.schema.json",
-      "sha256": "b7c21be8f7eafdbbbde5706b69768358133b771a721f8c6d6ed1667daec0fd59"
+      "sha256": "800f730696260fd1c91b63a0f1fba69d0195f12b5a7b0782bbdcc706d298cb5a"
     },
     "app_api_openapi": {
       "path": "application-api.openapi.yaml",
-      "sha256": "484f004d838928d5cfd8c5016c9459a38e695aba93a76b6b84f27406c6c385f9"
+      "sha256": "b5cdaf8c0ffbfa6c5a9fb5f70b3aaf74dbbad0a7b32a304539652e39f8a6cf1a"
     }
   },
   "source_files_sha256": {
@@ -47,7 +47,7 @@
     "backend/core/application_services/relay.py": "fc4a296e67dd9d71a5b8c3dd1156d1388034b43a0cffaded8cde19b0e045aa3a",
     "backend/core/application_services/resources.py": "aa11b93dd37e61edd0d9532be1c0a4ff7cc4f0b76967c46140681274d58a6602",
     "backend/core/application_services/retrieval.py": "20117500fd3f274a02901b4d6bb7a39c6d8f246977d773a81083a98ecc3e261f",
-    "backend/core/application_services/sandbox.py": "af648970aa4240dfe758fb8dc49935d394c63e99df070e49ea0445b24dbc0416",
+    "backend/core/application_services/sandbox.py": "fb5a18033e769a26e0ee88cbd60fdd1e08fcbbbbfd599fa87e284a842a83afb4",
     "backend/core/application_services/web.py": "c94ba8b3f03d0e768727e66953d38fdac79b9444abca836cd7711d57ce0eaf22",
     "backend/core/application_services/web_browser.py": "3709879a7b4253ea4b1b581be40fb70b697a6676acc78960681c4ee94c48e0e1",
     "backend/core/authentication/sso_facade.py": "1cf21fd512e8c2e35c990d9a40bd7cf977be6cab8bf946025549e5e22fdddcee",
@@ -56,6 +56,7 @@
     "backend/core/openapi_docs.py": "6dbfabfb0e908a54a1d5284921c7f40fe3e23860399a0d3fdd57b973dd6ba860",
     "backend/core/permissions.py": "13d47919a14b1f439a1dbe7b461fb135bb60c535f71c3705bcd03fda8c128ae3",
     "backend/core/platform_version.py": "6db91c8637d8349b69d30369aa4d6531a71044e981ccf6e3298a00b276423e23",
+    "backend/core/storage/sandbox_policy.py": "763d2d3c4cb0e85829e06867cf2af173a51469a1b1f657dfe5644334340beb09",
     "backend/core/tenant/email.py": "5c36ad6ee1a7b0297221787e2304469d55ce9cdaa8fede969812a2878762c1a1",
     "backend/core/tenant/keycloak.py": "ffcc7a81ca6a9370e9b32bd98adeabdc15b85b2946af500e0b86dadf62cca0b6",
     "backend/jobs/workflows/application_archive_import/activities.py": "cb6e025da70ae6fbf34e4478475f42edfe885b02466e807f97d8c931a418f654",
