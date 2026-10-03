@@ -120,7 +120,7 @@ export default function LoginPage() {
     try {
       await post("/auth/password-reset", { identifier: values.get("identifier") });
       setRecoverySent(true);
-      setMessage("Se l'account esiste e può usare la password, riceverà le istruzioni di recupero.");
+      setMessage("Se idoneo, riceverai a breve le istruzioni di recupero.");
     } catch {
       setMessage("Recupero password non disponibile. Riprova più tardi.");
     } finally {

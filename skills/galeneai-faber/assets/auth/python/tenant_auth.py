@@ -51,7 +51,7 @@ class SSOExchange(BaseModel):
 
 
 class PasswordReset(BaseModel):
-    identifier: str = Field(min_length=1, max_length=200)
+    identifier: str = Field(min_length=1, max_length=320)
 
 
 def make_auth_router(
