@@ -24,8 +24,8 @@ sys.path.insert(0, str(SCRIPTS))
 from _support import load_json, validate_manifest  # noqa: E402
 from doctor import doctor as run_doctor  # noqa: E402
 from http_client import NoRedirectHandler, open_no_redirect  # noqa: E402
-from install import _load_service_bindings, install_deployment, request_json
-from install import main as install_main
+from install import _load_service_bindings, install_deployment, request_json  # noqa: E402
+from install import main as install_main  # noqa: E402
 
 
 def load_script(name: str):
