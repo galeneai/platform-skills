@@ -1,9 +1,9 @@
 {
   "app_version": "1.2.0",
   "manifest_schema": "1.0",
-  "platform_core_commit": "381114016d3baac9b4634cb39e74feca6c9eab05",
-  "manifest_schema_sha256": "800f730696260fd1c91b63a0f1fba69d0195f12b5a7b0782bbdcc706d298cb5a",
-  "openapi_sha256": "b5cdaf8c0ffbfa6c5a9fb5f70b3aaf74dbbad0a7b32a304539652e39f8a6cf1a",
+  "platform_core_commit": "449dacf3b4d643d38f8153f4c6abf7db6f88d7e5",
+  "manifest_schema_sha256": "80fc04632997a59126f0bea859cf99d4a1f148cf127293fd4e3d63555ebb2997",
+  "openapi_sha256": "b670be9bc0539176c7e5ee1e89db96574fdab8e31b64f209a7177c639fa91724",
   "registry_mode": "external-owner",
   "runtime_adapters": {
     "compose": "pending",

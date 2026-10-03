@@ -4,7 +4,7 @@ These fictional examples accompany the [pinned application-services contract](ap
 
 ## Manifest additions
 
-Merge these fields into an ordinary manifest with named `backend` and `worker` components of the corresponding kinds. They remain schema version 1.0. Select only roles needed by the approved blueprint; this example illustrates choices, not a recommended blanket grant.
+Merge these fields into an ordinary manifest with named `backend` and `worker` components of the corresponding kinds. They remain schema version 1.0; set the existing `app.requires_core` to `">=1.3,<2.0"` before publishing this service release. Select only roles needed by the approved blueprint; this example illustrates choices, not a recommended blanket grant.
 
 ```json
 {
@@ -59,7 +59,7 @@ Do not send `mcp_tools` hashes in bindings. Core derives trusted pins from the a
 
 ## Operation bodies
 
-Each body goes to `POST /v1/services/operations` with the app access bearer. For user-mode `cases`, also supply the actual user's delegated bearer header. Send a persisted `Idempotency-Key` of 1–200 non-space printable ASCII characters. The response is the direct operation DTO with HTTP 202; retry the identical body/key only under the same grant revision. These examples illustrate argument shapes read from the current adapters; final snapshot verification is still required.
+Each body goes to `POST /v1/services/operations` with the app access bearer. For user-mode `cases`, also supply the actual user's delegated bearer header. Send a persisted `Idempotency-Key` of 1–200 non-space printable ASCII characters. The response is the direct operation DTO with HTTP 202; retry the identical body/key only under the same grant revision. These examples illustrate adapter arguments at the recorded candidate commit; they do not establish final delivery acceptance or authorize operations absent from that candidate.
 
 ```json
 {"service_role":"research","operation":"search","arguments":{"query":"public annual report","limit":5}}

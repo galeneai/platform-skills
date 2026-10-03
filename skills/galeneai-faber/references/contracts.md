@@ -9,7 +9,7 @@ Use the contract files in [contracts/](contracts/) as the public authoring refer
 
 The packaged contracts include manifest 1.0 service/resource requirements, explicit installation approvals/bindings, `/v1/services` and ordinary job-consent, notification inbox/preferences, resource selection and credential rotation routes. Read [application services](application-services.md), [examples](application-services-examples.md) and [jobs/notifications](application-jobs-notifications.md) for authoring and authority boundaries. Snapshot coverage supports authoring and comparison; it does not establish tenant prerequisites, deployment readiness or completed external effects.
 
-The lock pins Platform Core commit `381114016d3baac9b4634cb39e74feca6c9eab05`. These files are versioned contract artifacts; they contain no platform implementation code.
+The lock pins candidate Platform Core commit `449dacf3b4d643d38f8153f4c6abf7db6f88d7e5`, whose public Core version is `1.3.0`. This is the exact current-code candidate, not the final pin for the whole delivery. These versioned contract artifacts contain no platform implementation code.
 
 For the exact target's public OpenAPI URL, follow [API discovery](api-discovery.md), including Console, Control Plane and app runtime configuration. Keep its downloaded JSON separate from the pinned files below.
 
@@ -19,7 +19,7 @@ For the exact target's public OpenAPI URL, follow [API discovery](api-discovery.
 
 New application-services releases use `app.requires_core: ">=1.3,<2.0"` and keep manifest `schema_version: "1.0"`. Core 1.3.0 identifies the first release with this service contract and its compatibility enforcement. Core checks the complete PEP 440 constraint at preflight, publication, installation, update and reconciliation; malformed or incompatible constraints are rejected. Do not use npm caret syntax or weaken a release constraint to bypass an incompatible target.
 
-The packaged snapshot still pins the earlier implementation at `381114016d3baac9b4634cb39e74feca6c9eab05`, whose advertised Core version is 1.2.0. Its final 1.3 release pin is pending source qualification; these artifacts have not been regenerated or presented as a 1.3 release snapshot. Older Core revisions may ignore unknown service/resource fields and may not enforce `requires_core`. A successful install or a written version range on those revisions cannot establish support.
+The packaged schema and focused OpenAPI were exported offline from that exact Core candidate; OpenAPI `info.version` retains the public `1.3.0`, while `x-platform-core-commit` and the lock identify the source revision. The candidate does not settle remaining delivery acceptance or authorize undeclared operations. Older Core revisions may ignore unknown service/resource fields and may not enforce `requires_core`. A successful install or a written version range on those revisions cannot establish support.
 
 For a manifest with nonempty service/resource requirements, Faber checks the exact target's public OpenAPI before installation or the direct publication preflight: it requires a stable Core 1.x release at least 1.3.0, manifest requirement and approval/binding fields, and the service routes. Missing/unknown contracts and unqualified major versions fail closed. The unauthenticated check sends no bearer and cannot replace Core's full PEP 440 validation, current grants or tenant prerequisites. Legacy manifests without new requirements retain their existing flow.
 
