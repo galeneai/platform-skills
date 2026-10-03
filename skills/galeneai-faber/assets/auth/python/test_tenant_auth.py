@@ -298,6 +298,25 @@ class AuthExampleTests(unittest.TestCase):
         self.assertNotIn("sensitive_extra", response.text)
         self.assertEqual(self.sessions, [])
 
+    def test_temporary_password_normalizes_other_post_update_challenges(self):
+        self.temporary_complete_error = (
+            409,
+            {"detail": {
+                "challenge": "password_update_required",
+                "password_updated": True,
+            }},
+        )
+        response = self.post("/auth/temporary-password", {
+            "username": "example",
+            "temporary_password": "EXAMPLE-temporary-not-real",
+            "new_password": "EXAMPLE-new-password-not-real",
+            "confirm_new_password": "EXAMPLE-new-password-not-real",
+        })
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["detail"]["challenge"], "sign_in_required")
+        self.assertTrue(response.json()["detail"]["password_updated"])
+        self.assertEqual(self.sessions, [])
+
     def test_temporary_password_respects_disabled_credential_login(self):
         self.auth_config["credential_login_enabled"] = False
         response = self.post("/auth/temporary-password", {

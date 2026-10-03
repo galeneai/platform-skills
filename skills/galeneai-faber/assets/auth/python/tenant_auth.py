@@ -130,10 +130,14 @@ def make_auth_router(
                 headers = {"Retry-After": response.headers["Retry-After"]}
             if (error_mode == "temporary-password-complete"
                     and isinstance(challenge, dict)
-                    and challenge.get("password_updated") is True
-                    and challenge.get("challenge") in {"totp_required", "sign_in_required"}):
+                    and challenge.get("password_updated") is True):
+                next_challenge = (
+                    "totp_required"
+                    if challenge.get("challenge") == "totp_required"
+                    else "sign_in_required"
+                )
                 raise HTTPException(status, {
-                    "challenge": challenge["challenge"],
+                    "challenge": next_challenge,
                     "password_updated": True,
                     "message": "Password updated. Sign in again.",
                 }, headers=headers)
