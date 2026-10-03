@@ -45,6 +45,10 @@ The install script checks all required route selections against the tenant's opt
 
 If the user chooses tenant-scoped installation, use the documented tenant app catalog/deployment APIs and permissions with a tenant token. Use the tenant UI for any required domain selection that the tenant API contract does not expose to the selected role. Keep the same explicit tenant and readiness checks.
 
+## Service approvals and resource bindings
+
+For the [application-services extension](application-services.md), first meet its committed-snapshot gate. During installation/upgrade, approve required service roles and bind declared tenant resource roles using the supported Console/Control Plane controls or verified deployment API. Model selection stays separate. The current `install.py` has no service approval/binding inputs, so use the verified UI/API for service-dependent apps until tooling is upgraded; it cannot infer these choices. Preserve omitted PATCH fields on unrelated edits. Settings can revoke service approval without deleting the deployment; the app must handle denied access. Verify one affected workflow and the directly relevant denial/revocation case after review on the assigned beta environment. Kubernetes verification, backup/support and watermark are outside the current delivery scope.
+
 ## Update an existing installation
 
 Use the documented deployment update API or UI with the newly published immutable version. Preserve the existing deployment, its app database, installation scope, and secret references unless the approved change explicitly requires otherwise. Coordinate active app jobs according to the app's documented recovery behavior before an update. Verify the returned deployment state, selected route, and affected user workflow. Record the observed release digests and source provenance when the public target exposes them; no Docker, Kubernetes, or platform-host access is assumed. Reinstallation is not a substitute for an upgrade check.

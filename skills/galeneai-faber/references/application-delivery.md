@@ -10,6 +10,7 @@ Before implementation, confirm the target Core contract and the selected tenant 
 - the relevant operations and request/response schemas in the published skill snapshot and the target's public `/openapi.json`;
 - the tenant's public IdP configuration and supported sign-in flow;
 - required model roles, modalities, and tenant bindings;
+- explicit service-role approvals, component targeting, resource bindings and user/offline consent for [application services](application-services.md), once its snapshot gate is met;
 - the documented filesystem, upload, and ingestion status APIs for source documents;
 - app-scoped database resources and the app's own migration path, when persistence is required.
 
@@ -20,6 +21,8 @@ Use public APIs and the published snapshot; app builders do not need a Core chec
 Choose a representative, authorized source and complete one end-to-end user path before loading a large corpus. For a document-and-model workflow, that usually means sign-in, open or upload a document, wait for actual processing, call the tenant-bound model, persist the result, review or correct it, and export it. Use real API responses and persisted state; do not substitute static results or fixtures in the product flow. Set up each component's logging in [the platform log format](logging.md) in this first slice, including framework, server, and proxy output, and log the Core `X-Galene-Correlation-Id` returned for each call.
 
 Select a small set of fixtures that exercise the document structures the app actually handles. For procurement documents, include examples such as dates, struck-through text, table geometry, and relevant OOXML structures before expensive inference. Inspect every page of a generated export when its deliverable has page-visual requirements. Evidence and exports should identify the real source, revision, and reviewer metadata available to the app; tie source anchors to actual source locations. Never invent page positions, reviewer identities, formatting markers, or numeric confidence for uncertain text.
+
+For application services, preserve the public operation ID, actual lifecycle and idempotency identity; keep downstream ingestion and scheduled-job completion distinct from submission acceptance. Read [application services](application-services.md#durable-operations).
 
 Keep asynchronous work tied to the returned job identity. On refresh or navigation, recover the same job and display its actual stage and terminal state. Use documented public terminal signals; an ingestion-file completion state alone may not mean the app's larger workflow is complete. Retry and cancel must invoke the documented operation on that job; don't silently create a duplicate job. Handle authentication-required, blocked, failed, cancelled, and stale outcomes explicitly. Do not build behavior around a guessed future token or job expiry time. Distinguish fresh calls, explicitly permitted cache results, and fixtures; if acceptance requires fresh work, verify that the calls actually occurred rather than relying on a new job ID alone.
 

@@ -10,6 +10,10 @@
 - Secrets are set through the tenant's supported secret flow. Mark secret environment declarations sensitive, omit defaults, and keep plaintext out of manifests, archives, logs, test fixtures, and command arguments.
 - Treat session-cookie values, including UUID-shaped values, as credentials. Do not copy them into project notes or diagnostics, or expose them in browser logs, screenshots, or exported artifacts.
 
+## Application service authority
+
+Read [application services](application-services.md) before declaring service/resource requirements. Core-managed component credentials authorize only explicitly approved roles/operations/bindings. Keep bootstrap and short access tokens out of the frontend and use the managed token exchange. User-mode calls additionally carry the real tenant user bearer in the documented delegation header; never manufacture a user/session or borrow personal connector tokens. Scheduled user work requires explicit offline consent with bounded scope and lifetime. Notification recipients are approved tenant-user bindings, not app-supplied addresses. MCP invocation is limited to exact approved tools and trusted schema pins. Revocation must deny subsequent work and must not trigger a hidden privilege fallback.
+
 ## App-owned database
 
 Declare an application database resource only when needed. Core provisions an app-scoped database and injects its URL at the manifest-selected environment name, normally DATABASE_URL. Run the app's idempotent database migration command during app startup using that runtime DATABASE_URL. Keep migration source and migration history inside the app repository/image.

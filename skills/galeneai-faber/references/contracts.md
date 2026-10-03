@@ -7,6 +7,8 @@ Use the contract files in [contracts/](contracts/) as the public authoring refer
 - [Snapshot lock](contracts/snapshot-lock.json) records the exact Platform Core commit, source files, and SHA-256 hashes of both exported contract files.
 - [Public external-registry manifest example](contracts/examples/team-notes-manifest.json) and [multi-component archive-import request example](contracts/examples/multi-component-archive-import-manifest.json) use only fictional IDs and digests.
 
+**Application-services extension pending:** [the source-preview guide](application-services.md) and [examples](application-services-examples.md) describe the new manifest 1.0 service/resource requirements and `/v1/services` family. They are not in the packaged schema/OpenAPI yet. Keep the current snapshots and compatibility lock intact until a maintainer verifies the exact final Core commit, exports the new contracts and updates the tooling. Do not claim validation, packaging, installation or runtime readiness for that extension from this older baseline.
+
 The lock pins Platform Core commit `454deb5c990a546092f23337ee06235af493e6d9`. These files are versioned contract artifacts; they contain no platform implementation code.
 
 For the exact target's public OpenAPI URL, follow [API discovery](api-discovery.md), including Console, Control Plane and app runtime configuration. Keep its downloaded JSON separate from the pinned files below.
