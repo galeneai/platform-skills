@@ -24,7 +24,8 @@ sys.path.insert(0, str(SCRIPTS))
 from _support import load_json, validate_manifest  # noqa: E402
 from doctor import doctor as run_doctor  # noqa: E402
 from http_client import NoRedirectHandler, open_no_redirect  # noqa: E402
-from install import _load_service_bindings, install_deployment, main as install_main, request_json  # noqa: E402
+from install import _load_service_bindings, install_deployment, request_json
+from install import main as install_main
 
 
 def load_script(name: str):
@@ -319,7 +320,7 @@ class SkillToolingTests(unittest.TestCase):
             with self.subTest(auth_context=auth_context):
                 calls = []
 
-                def fake_api(base, path, token, method, payload):
+                def fake_api(base, path, token, method, payload, calls=calls):
                     calls.append((path, method, payload))
                     if path == "/controlplane/tenants":
                         return {"result": [{"id": tenant_id, "slug": "acme-test"}]}
