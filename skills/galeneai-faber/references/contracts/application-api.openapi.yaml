@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
   title: Galene tenant application API excerpt
-  version: 79b539964a57
+  version: 454deb5c990a
   description: Application publication, installation and public tenant sign-in/recovery contracts exported
     from the exact Platform Core commit recorded in snapshot-lock.json. Unrelated Core APIs are omitted.
-  x-platform-core-commit: 79b539964a577304a88aac2477a41e092a4b169d
+  x-platform-core-commit: 454deb5c990a546092f23337ee06235af493e6d9
 servers:
 - url: /
 paths:
@@ -6799,9 +6799,11 @@ paths:
       tags:
       - Authentication
       summary: Request a tenant password reset
-      description: 'Ask Keycloak to email its signed, expiring `UPDATE_PASSWORD` action to a tenant account,
-        then return the browser to an exact trusted Console or installed-application login URI. No authentication
-        is required and the call never creates an application session.
+      description: 'Request a password-reset email for a tenant account. The backward-compatible `completion_mode=keycloak`
+        default sends Keycloak''s signed `UPDATE_PASSWORD` action. `completion_mode=application` sends
+        an opaque proof in the fragment of an exact trusted Console or installed-application login URI;
+        the application completes it through `POST .../password-reset/complete`. No authentication is
+        required and the call never creates an application session.
 
 
         The same 202 acknowledgement is returned when the identifier is unknown, disabled, federated-only,
@@ -6905,6 +6907,141 @@ paths:
           description: Password reset is temporarily unavailable because the authentication limiter, tenant
             realm metadata, SMTP configuration or target, trusted redirect registry, or embedding-maintenance
             gate is unavailable. No account lookup or email occurs.
+          content:
+            application/json:
+              examples:
+                unavailable:
+                  summary: Password reset unavailable
+                  value:
+                    detail: Password reset is temporarily unavailable.
+                maintenance:
+                  summary: Tenant in embedding-migration maintenance
+                  value:
+                    detail: Tenant is in maintenance for embedding migration. Try again after completion.
+              schema:
+                $ref: '#/components/schemas/HTTPErrorResponse'
+      security: []
+      x-galene-audience: public-auth
+      x-galene-permissions: []
+      x-galene-roles: []
+  /public/tenants/{tenant_slug}/auth/password-reset/complete:
+    post:
+      tags:
+      - Authentication
+      summary: Complete a tenant password reset in an application
+      description: Consume the opaque one-time proof delivered to an exact registered application login
+        URI, set a permanent Keycloak password and revoke the user's existing Keycloak sessions. No authentication
+        is required, and success does not create a new session or return login tokens. The proof expires
+        after 15 minutes and is consumed atomically before Keycloak is changed. A definite password-policy
+        rejection restores the proof only for its original remaining lifetime.
+      operationId: complete_tenant_password_reset_public_tenants__tenant_slug__auth_password_reset_complete_post
+      parameters:
+      - name: tenant_slug
+        in: path
+        required: true
+        schema:
+          type: string
+          description: Slug of the tenant, as used in its URLs.
+          examples:
+          - acme
+          title: Tenant Slug
+        description: Slug of the tenant, as used in its URLs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantPasswordResetCompleteRequest'
+      responses:
+        '200':
+          description: Password replaced; the caller must sign in separately.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPasswordResetCompletedResponse'
+              example:
+                completed: true
+        '403':
+          description: The tenant is not active.
+          content:
+            application/json:
+              examples:
+                tenant_inactive:
+                  summary: Tenant suspended or not yet active
+                  value:
+                    detail: Tenant is not active.
+              schema:
+                $ref: '#/components/schemas/HTTPErrorResponse'
+        '404':
+          description: No tenant has this slug.
+          content:
+            application/json:
+              examples:
+                tenant_not_found:
+                  summary: Unknown tenant
+                  value:
+                    detail: Tenant not found.
+              schema:
+                $ref: '#/components/schemas/HTTPErrorResponse'
+        '401':
+          description: The proof is absent, expired, replayed or bound to another tenant or application.
+          content:
+            application/json:
+              examples:
+                invalid:
+                  summary: Invalid or expired proof
+                  value:
+                    detail: Password reset token is invalid or expired.
+              schema:
+                $ref: '#/components/schemas/HTTPErrorResponse'
+        '409':
+          description: The tenant realm no longer allows self-service password reset.
+          content:
+            application/json:
+              examples:
+                disabled:
+                  summary: Password reset disabled
+                  value:
+                    detail: Password reset is disabled for this tenant.
+              schema:
+                $ref: '#/components/schemas/HTTPErrorResponse'
+        '422':
+          description: The redirect is not registered or the new password violates realm policy.
+          content:
+            application/json:
+              examples:
+                untrusted_redirect:
+                  summary: Untrusted return URI
+                  value:
+                    detail: Password reset return URI is not registered
+                password_policy:
+                  summary: Password policy rejected
+                  value:
+                    detail: New password does not meet Keycloak requirements.
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/ValidationErrorResponse'
+                - $ref: '#/components/schemas/HTTPErrorResponse'
+                title: Response 422 Complete Tenant Password Reset Public Tenants  Tenant Slug  Auth Password
+                  Reset Complete Post
+        '429':
+          description: Too many completion attempts for this proof or client address.
+          content:
+            application/json:
+              examples:
+                rate_limited:
+                  summary: Rate limit reached
+                  value:
+                    detail: Too many password reset attempts. Try again later.
+              schema:
+                $ref: '#/components/schemas/HTTPErrorResponse'
+          headers:
+            Retry-After:
+              description: Seconds until the exhausted failure counter expires.
+              schema:
+                type: integer
+        '503':
+          description: The proof store, tenant realm metadata, redirect registry or Keycloak is unavailable.
           content:
             application/json:
               examples:
@@ -7780,8 +7917,9 @@ paths:
         The challenge token is consumed as soon as it is checked, so it cannot be reused even when a later
         step fails: when Keycloak rejects the new password (422), start again with the challenge step.
         When the sign-in fails after the password was changed (for example because the user is disabled),
-        the password stays changed and the error is returned as is: sign in with `POST /public/tenants/{tenant_slug}/auth/login`
-        and the new password.'
+        `detail` is a challenge object with `password_updated: true`: the original challenge when available,
+        otherwise `sign_in_required`. Sign in with `POST /public/tenants/{tenant_slug}/auth/login` and
+        the new password; never replay this completion request.'
       operationId: complete_tenant_temporary_password_update_public_tenants__tenant_slug__auth_temporary_password_complete_post
       parameters:
       - name: tenant_slug
@@ -7836,15 +7974,11 @@ paths:
                   controlplane: false
         '401':
           description: 'The challenge token is unknown, used, expired or issued for another tenant (the
-            password is unchanged), or the sign-in after the password change failed: Keycloak rejected
-            the credentials or the issued token.'
+            password is unchanged), or the sign-in after the password change failed (`password_updated:
+            true`).'
           content:
             application/json:
               examples:
-                invalid_credentials:
-                  summary: Wrong credentials or rejected token
-                  value:
-                    detail: Invalid credentials.
                 challenge_expired:
                   summary: Unknown, used or expired challenge token
                   value:
@@ -7853,11 +7987,40 @@ paths:
                   summary: Keycloak rejected the issued access token
                   value:
                     detail: Invalid or expired token.
+                totp_required_after_update:
+                  summary: Password changed; one-time code required
+                  value:
+                    detail:
+                      challenge: totp_required
+                      message: A one-time authentication code is required.
+                      mfa_required: true
+                      supported_methods:
+                      - totp
+                      setup_token: null
+                      challenge_id: null
+                      otp_uri: null
+                      label: null
+                      expires_at: null
+                      password_updated: true
+                sign_in_required:
+                  summary: Password changed; sign in again
+                  value:
+                    detail:
+                      challenge: sign_in_required
+                      message: Password updated. Sign in with your new password.
+                      mfa_required: false
+                      supported_methods: []
+                      setup_token: null
+                      challenge_id: null
+                      otp_uri: null
+                      label: null
+                      expires_at: null
+                      password_updated: true
               schema:
                 $ref: '#/components/schemas/AuthErrorResponse'
         '403':
-          description: The tenant is not active, or the user is disabled or has no account in the tenant
-            (an account that an SSO or directory connector cannot create on first sign-in).
+          description: The tenant is inactive (the password is unchanged), or the password changed and
+            the user became unavailable (`sign_in_required`).
           content:
             application/json:
               examples:
@@ -7865,12 +8028,22 @@ paths:
                   summary: Tenant suspended or not yet active
                   value:
                     detail: Tenant is not active.
-                user_inactive:
-                  summary: Tenant user disabled or unknown
+                sign_in_required:
+                  summary: Password changed; user unavailable
                   value:
-                    detail: Tenant user is not active.
+                    detail:
+                      challenge: sign_in_required
+                      message: Password updated. Sign in with your new password.
+                      mfa_required: false
+                      supported_methods: []
+                      setup_token: null
+                      challenge_id: null
+                      otp_uri: null
+                      label: null
+                      expires_at: null
+                      password_updated: true
               schema:
-                $ref: '#/components/schemas/HTTPErrorResponse'
+                $ref: '#/components/schemas/AuthErrorResponse'
         '404':
           description: No tenant has this slug.
           content:
@@ -7883,22 +8056,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPErrorResponse'
         '409':
-          description: The user signs in through an SSO or directory connector for the first time and
-            their email already belongs to another tenant account.
+          description: The password changed but tenant user reconciliation found an identity conflict.
           content:
             application/json:
               examples:
-                sso_email_conflict:
-                  summary: SSO identity collides with another account
+                sign_in_required:
+                  summary: Password changed; identity conflict
                   value:
-                    detail: This SSO identity matches an existing tenant email but is linked to a different
-                      account. Ask a tenant administrator to verify and reconcile the identity.
+                    detail:
+                      challenge: sign_in_required
+                      message: Password updated. Sign in with your new password.
+                      mfa_required: false
+                      supported_methods: []
+                      setup_token: null
+                      challenge_id: null
+                      otp_uri: null
+                      label: null
+                      expires_at: null
+                      password_updated: true
               schema:
-                $ref: '#/components/schemas/HTTPErrorResponse'
+                $ref: '#/components/schemas/AuthChallengeErrorResponse'
         '503':
           description: 'The tenant is in maintenance for an embedding migration (sent with `Retry-After:
-            300`). Or the challenge store (Redis) is unavailable, or the tenant''s sign-in flows could
-            not be prepared in Keycloak.'
+            300`). Or, with the password unchanged, the challenge store or sign-in flow is unavailable;
+            or a post-write login dependency failed (`sign_in_required`).'
           content:
             application/json:
               examples:
@@ -7914,8 +8095,22 @@ paths:
                   summary: Tenant sign-in flows could not be prepared
                   value:
                     detail: Tenant sign-in is temporarily unavailable.
+                sign_in_required_after_update:
+                  summary: Password changed; sign in unavailable
+                  value:
+                    detail:
+                      challenge: sign_in_required
+                      message: Password updated. Sign in with your new password.
+                      mfa_required: false
+                      supported_methods: []
+                      setup_token: null
+                      challenge_id: null
+                      otp_uri: null
+                      label: null
+                      expires_at: null
+                      password_updated: true
               schema:
-                $ref: '#/components/schemas/HTTPErrorResponse'
+                $ref: '#/components/schemas/AuthErrorResponse'
           headers:
             Retry-After:
               description: 'Sent with the embedding-migration maintenance error: seconds to wait (300).'
@@ -7970,8 +8165,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPErrorResponse'
         '502':
-          description: The Keycloak admin API sign-in failed, or the token endpoint returned an unexpected
-            error.
+          description: The Keycloak admin API failed before the password write, or a post-write login
+            dependency failed (`sign_in_required`).
           content:
             application/json:
               examples:
@@ -7983,8 +8178,22 @@ paths:
                   summary: Keycloak token endpoint failed
                   value:
                     detail: Keycloak token exchange failed.
+                sign_in_required:
+                  summary: Password changed; sign in again
+                  value:
+                    detail:
+                      challenge: sign_in_required
+                      message: Password updated. Sign in with your new password.
+                      mfa_required: false
+                      supported_methods: []
+                      setup_token: null
+                      challenge_id: null
+                      otp_uri: null
+                      label: null
+                      expires_at: null
+                      password_updated: true
               schema:
-                $ref: '#/components/schemas/HTTPErrorResponse'
+                $ref: '#/components/schemas/AuthErrorResponse'
       security: []
       x-galene-audience: public-auth
       x-galene-permissions: []
@@ -14755,6 +14964,13 @@ components:
           description: Whether self-service password reset is enabled and the tenant realm has a complete,
             policy-approved SMTP target.
           default: false
+        password_reset_completion_modes:
+          items:
+            $ref: '#/components/schemas/PasswordResetCompletionMode'
+          type: array
+          title: Password Reset Completion Modes
+          description: Supported reset completion flows. Empty when password reset is unavailable; otherwise
+            includes `keycloak` and `application`.
         sso_connectors:
           items:
             additionalProperties: true
@@ -14794,6 +15010,9 @@ components:
           required: true
           supported_methods:
           - totp
+        password_reset_completion_modes:
+        - keycloak
+        - application
         password_reset_enabled: true
         sso_connectors:
         - alias: corporate-oidc
@@ -14896,6 +15115,13 @@ components:
           description: Whether self-service password reset is enabled and the tenant realm has a complete,
             policy-approved SMTP target.
           default: false
+        password_reset_completion_modes:
+          items:
+            $ref: '#/components/schemas/PasswordResetCompletionMode'
+          type: array
+          title: Password Reset Completion Modes
+          description: Supported reset completion flows. Empty when password reset is unavailable; otherwise
+            includes `keycloak` and `application`.
         sso_connectors:
           items:
             $ref: '#/components/schemas/SSOConnectorPublicResponse'
@@ -14922,6 +15148,9 @@ components:
           required: false
           supported_methods:
           - totp
+        password_reset_completion_modes:
+        - keycloak
+        - application
         password_reset_enabled: true
         sso_connectors:
         - alias: example-idp
@@ -15471,6 +15700,12 @@ components:
           title: Redirect Uri
           description: Exact login URI to return to after the password is changed. It must be the Console
             `/login` URI or the login path declared by an active installed application.
+        completion_mode:
+          $ref: '#/components/schemas/PasswordResetCompletionMode'
+          description: '`keycloak` sends Keycloak''s hosted password action (the backward-compatible default);
+            `application` sends an opaque one-time proof that the application completes through the Core
+            REST API.'
+          default: keycloak
       additionalProperties: false
       type: object
       required:
@@ -15479,7 +15714,8 @@ components:
       title: TenantPasswordResetRequest
       description: Ask Keycloak to email a password-update action for a tenant account.
       examples:
-      - identifier: john.smith@example.com
+      - completion_mode: application
+        identifier: john.smith@example.com
         redirect_uri: https://assistant-acme.example.com/login
     TenantPasswordResetAcceptedResponse:
       properties:
@@ -15860,6 +16096,83 @@ components:
       - events
       title: TenantApplicationDetailResponse
       description: A deployment with its package, version, components, domains, databases and events.
+    AuthChallengeErrorResponse:
+      properties:
+        detail:
+          $ref: '#/components/schemas/AuthChallengeResponse'
+          description: Sign-in challenge to complete.
+      additionalProperties: false
+      type: object
+      required:
+      - detail
+      title: AuthChallengeErrorResponse
+      description: 'Sign-in challenge returned by the login and MFA endpoints.
+
+
+        The client completes the named challenge (for example by sending a
+
+        one-time code) and repeats or continues the sign-in.'
+      examples:
+      - detail:
+          challenge: totp_required
+          message: A one-time authentication code is required.
+          mfa_required: true
+          supported_methods:
+          - totp
+    PasswordResetCompletionMode:
+      type: string
+      enum:
+      - keycloak
+      - application
+      title: PasswordResetCompletionMode
+      description: Where a tenant password reset is completed.
+    TenantPasswordResetCompleteRequest:
+      properties:
+        reset_token:
+          type: string
+          maxLength: 512
+          minLength: 32
+          title: Reset Token
+          description: Opaque token received in the login-page URL fragment.
+        new_password:
+          type: string
+          minLength: 1
+          format: password
+          title: New Password
+          description: New permanent password. It must satisfy the tenant realm password policy.
+          writeOnly: true
+        redirect_uri:
+          type: string
+          maxLength: 2048
+          minLength: 1
+          title: Redirect Uri
+          description: Exact registered login URI that received the reset token. It must match the URI
+            bound to the proof.
+      additionalProperties: false
+      type: object
+      required:
+      - reset_token
+      - new_password
+      - redirect_uri
+      title: TenantPasswordResetCompleteRequest
+      description: Complete an application-managed password reset with its one-time proof.
+      examples:
+      - new_password: EXAMPLE-new-password-1
+        redirect_uri: https://assistant-acme.example.com/login
+        reset_token: EXAMPLE-challenge-token-not-a-real-value-000000000000000000000000
+    TenantPasswordResetCompletedResponse:
+      properties:
+        completed:
+          type: boolean
+          const: true
+          title: Completed
+          description: Always `true`; the response does not create or contain a login session.
+          default: true
+      type: object
+      title: TenantPasswordResetCompletedResponse
+      description: Confirmation that an application-managed password reset completed.
+      examples:
+      - completed: true
   securitySchemes:
     TenantBearer:
       type: http

@@ -7,7 +7,7 @@ Use the contract files in [contracts/](contracts/) as the public authoring refer
 - [Snapshot lock](contracts/snapshot-lock.json) records the exact Platform Core commit, source files, and SHA-256 hashes of both exported contract files.
 - [Public external-registry manifest example](contracts/examples/team-notes-manifest.json) and [multi-component archive-import request example](contracts/examples/multi-component-archive-import-manifest.json) use only fictional IDs and digests.
 
-The lock pins Platform Core commit `79b539964a577304a88aac2477a41e092a4b169d`. These files are versioned contract artifacts; they contain no platform implementation code.
+The lock pins Platform Core commit `454deb5c990a546092f23337ee06235af493e6d9`. These files are versioned contract artifacts; they contain no platform implementation code.
 
 For the exact target's public OpenAPI URL, follow [API discovery](api-discovery.md), including Console, Control Plane and app runtime configuration. Keep its downloaded JSON separate from the pinned files below.
 

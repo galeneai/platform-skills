@@ -895,7 +895,7 @@
       "type": "object"
     }
   },
-  "description": "Public application manifest schema exported from Platform Core 79b539964a577304a88aac2477a41e092a4b169d. Server-side validation remains authoritative.",
+  "description": "Public application manifest schema exported from Platform Core 454deb5c990a546092f23337ee06235af493e6d9. Server-side validation remains authoritative.",
   "examples": [
     {
       "app": {
@@ -1091,6 +1091,6 @@
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.galene.ai/application-manifest/1.0/schema.json",
-  "x-platform-core-commit": "79b539964a577304a88aac2477a41e092a4b169d",
+  "x-platform-core-commit": "454deb5c990a546092f23337ee06235af493e6d9",
   "x-contract-snapshot": "snapshot-lock.json"
 }

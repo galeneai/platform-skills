@@ -15,7 +15,7 @@ After installation, start a new Codex task and invoke it with `$galeneai-faber`.
 
 ## Version and update policy
 
-The current skill release is **0.5.0**; its SemVer is in `skills/galeneai-faber/SKILL.md` metadata and the snapshot lock. It adds generic SSO returns for installed tenant applications, the `authentication.login_path` manifest contract, and policy-driven password recovery through Core and Keycloak. Next.js/Python examples show provider discovery, recovery and legacy Console fallback; API/OpenAPI discovery supports Console, Control Plane and application URLs. The schema, focused OpenAPI and source hashes are refreshed from the exact committed Core revision recorded in the snapshot lock. The skill release is independent of an app's SemVer.
+The current skill release is **0.6.0**; its SemVer is in `skills/galeneai-faber/SKILL.md` metadata and the snapshot lock. It covers generic SSO returns for installed tenant applications, the `authentication.login_path` manifest contract, application-completed REST password recovery, and temporary-password first sign-in with explicit challenges. Next.js/Python examples show provider discovery, reset completion, required password changes and legacy Console fallback; API/OpenAPI discovery supports Console, Control Plane and application URLs. The schema, focused OpenAPI and source hashes are refreshed from the exact committed Core revision recorded in the snapshot lock. The skill release is independent of an app's SemVer.
 
 - PATCH fixes wording or tooling behavior without changing the workflow.
 - MINOR adds a compatible workflow or reference.

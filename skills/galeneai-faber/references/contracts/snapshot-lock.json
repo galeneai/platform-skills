@@ -1,38 +1,41 @@
 {
   "snapshot_version": 1,
-  "skill_version": "0.5.0",
+  "skill_version": "0.6.0",
   "source": {
     "repository": "galeneai/platform-core",
     "ref": "commit",
-    "commit": "79b539964a577304a88aac2477a41e092a4b169d",
+    "commit": "454deb5c990a546092f23337ee06235af493e6d9",
     "captured_date": "2026-10-03"
   },
   "contracts": {
     "application_manifest_json_schema": {
       "path": "application-manifest.schema.json",
-      "sha256": "cadd8b803b5afbeb754e02708f235e0f22b7897f41a097210668af3e928b72f5"
+      "sha256": "6fcd2d780cd00bc1d111543e63c240405941bb2f0c8f64c414f6e6df6fb2a2ff"
     },
     "app_api_openapi": {
       "path": "application-api.openapi.yaml",
-      "sha256": "8b634908772969388c0be26356a4f515d1d98a02ec0891a17fa6a0586488691e"
+      "sha256": "4c76b1ffe8a996a2737791702089fa51ca73aabb7c7dd8171493bc97dd685888"
     }
   },
   "source_files_sha256": {
+    "backend/controllers/auth_facade.py": "4f2c179df85fd312835948a79c8943cf3fce51845b4070e5502e306838cb5357",
     "backend/controllers/controlplane/application_archive_imports.py": "788cd36056422a9401b1c912b11c521fc610d6d5c90b5077945e841c95baebdc",
     "backend/controllers/controlplane/applications.py": "e559bf0fabff3c9303cf5e40d7cc3a340eae49f1a6304ecab91d63088090c6c6",
     "backend/controllers/controlplane/registry_sources.py": "3373582b1eb8801e00c4850cc4e3be6d02c30d2f4d2708b07cd5849e0997f456",
     "backend/controllers/controlplane/tenants.py": "7648cf3bcb658d94f94083e969a0b96f8b121be7bca28abba8b07ff6eec06b37",
     "backend/controllers/filesystems/application_resource.py": "a18bf7e82dbc280efff14d59449d2e72b379dfe4544f4ff4f5aa42acef2464f7",
-    "backend/controllers/tenant_password_reset.py": "fe7a00b7eb56516204ec318d8bccb8dfe5d8f16c5027ea01bf533df174b20a68",
-    "backend/controllers/tenant_sso.py": "25cd640dda2e36691718c8ad5b1017af8a63f8d540a2357af002d6d892d46c39",
+    "backend/controllers/tenant_password_reset.py": "45e7bb336aa481c67ef7452de4f17b7a6c14db9a1cd67e608d01d79216e6b608",
+    "backend/controllers/tenant_sso.py": "3664c576d6d17d187d20e18c801ff342e1243fea9c69d3b57ad5b90eba391694",
     "backend/core/authentication/application_redirects.py": "621c0de271631d851c8e184c6b4d79cbcc7712e6bd67e0a5e56d3985a2b86f84",
     "backend/core/authentication/sso_facade.py": "40b23ce8b2c583bd92f0346d6f6d5e33b788d4cfdd3e3649671110c25727f533",
+    "backend/core/authentication/tenant_password_reset.py": "39da0296f9cccf3b7940a0108134cac552fdf070ee58b25b730433aa54bf0d71",
     "backend/core/controlplane/authorization.py": "54a0426e9677d39acdd82512bce523446ad8c6984e950ae7e1c607e78a9ead03",
     "backend/core/permissions.py": "13d47919a14b1f439a1dbe7b461fb135bb60c535f71c3705bcd03fda8c128ae3",
-    "backend/core/tenant/keycloak.py": "4bd54983dfd3e9004737bdb0eb8a1f5c2a4a2a574cb6605dd00d51962ee07edd",
+    "backend/core/tenant/email.py": "b296ab46a9e7bbe66c866d5e16d3abe9767e6fffcdccbbf69aecefff64058cbb",
+    "backend/core/tenant/keycloak.py": "d8c9ff7aaee6faadfd95618b5564c0c188c8cf4037c779d1ca733c44b7479150",
     "backend/jobs/workflows/application_archive_import/activities.py": "cb6e025da70ae6fbf34e4478475f42edfe885b02466e807f97d8c931a418f654",
     "backend/main.py": "072279b6400db1978cb9ef00eff99d8228d7ae1d4703ef751f609662f9f86a0f",
-    "backend/models/auth/dto.py": "f2641db17050929d36ff1e50a72ba180c86f9f6b1662b24f1bf4f6584e030fa1",
+    "backend/models/auth/dto.py": "0eccf6d108a9572ecbd3f3040913fa4051bd83dd427f5974aaae81a681c76ba4",
     "backend/models/controlplane/application_archive_import/dto.py": "a1468e9a20ee56ca734b444e03526ba6f8f4d27b7d4fc15056f3d9ff2270440b",
     "backend/models/controlplane/application_package/dto.py": "56f127232f874c5014d4c6d01dc7c8221c8c99236cd9f89966968a22977f1bce",
     "backend/models/controlplane/application_package_version/dto.py": "32d20f5b09d3cdf8459b5eb2783704dc0ef9dc8dbbae39118cc1005ab4f4f31c",
@@ -43,7 +46,7 @@
     "backend/models/controlplane/tenant_application_deployment/dto.py": "11ee1ee851628c3c1a9d690aa8f371b91c159cbf685603126f6769c17e56e300",
     "backend/models/controlplane/tenant_application_domain/dto.py": "b550550d415754afe8bdbd783c58cfd746de03c3400b142bd89ebd74d7cdbf1e",
     "backend/models/controlplane/user/dto.py": "244ec0e95188ec6f56faeac6b8d33bd326e7ab4fb578a9ee8d1bc021b45f6f1a",
-    "backend/models/identity/sso_connector/dto.py": "f209a1e322fbb7fe1eaffadd4bf1c93c41b3584edaf7a40fe4dfd0ab83e72403",
+    "backend/models/identity/sso_connector/dto.py": "e84bf69ed221fc628d94c09c9329db51f76863f500db3a49580db5b5fe6d297c",
     "backend/routers/agents.py": "2ef00bed7ca271dc0f4b357b8cd1153ec28665831575dfb026ee05a7e82a54eb",
     "backend/routers/connectors.py": "41c1dfd17d6dac1a64a8da7ff106f1b2b1acedcb3588cedddb5e3d9998dd3db3",
     "backend/routers/controlplane.py": "a61865380f673cbf10ca85b30f2fb1c72a506c923d87f6cd1107fc174097be32",
@@ -53,7 +56,7 @@
     "backend/routers/database_connectors.py": "5d8951474528f018690166dd105ebcebf8e93879317fd49deb084bd204d69fde",
     "backend/routers/filesystem_files.py": "5814eb3b8d4d46a6028d3b23654b69c5ff20b5254c9a2cb375dfebebeb5cf587",
     "backend/routers/inference.py": "1b4886ae42e05ef4db6d68412673f9721b0dd1add29f967dc90d039800bc5369",
-    "backend/routers/public_auth.py": "37e685639e7478585fa897429c65b6d0a7cb481589412d2e9a4fb9a08981e0e8",
+    "backend/routers/public_auth.py": "c3f56ba3a447ba3d0387c94664501d9645b5d09e3e8942d36d5684c4a0ad93e6",
     "backend/routers/rag.py": "59bd19d63a20cc03df53d864a983a07eca500b664f0c1ae73bbf16d8cdcda86a",
     "backend/routers/sandbox.py": "190875768aca838dbcbd634d550f156ea93cbb59ad14d3a64e04a3a539903296",
     "backend/routers/sso_auth.py": "c6a5dbc149d81199f93d29c59a3e6bb0847af00ce2882c561b2668174e9e0f13",
