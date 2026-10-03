@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import secrets
 from collections.abc import Awaitable, Callable
-from typing import Protocol
+from typing import Literal, Protocol
 from urllib.parse import quote, urlsplit
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 
 
 class PendingStore(Protocol):
@@ -38,7 +38,7 @@ def url_origin(value: str) -> str:
 
 class Credentials(BaseModel):
     username: str = Field(min_length=1, max_length=200)
-    password: str = Field(min_length=1, max_length=4096)
+    password: SecretStr = Field(min_length=1, max_length=4096)
     totp: str | None = Field(default=None, min_length=4, max_length=12)
 
 
@@ -52,6 +52,20 @@ class SSOExchange(BaseModel):
 
 class PasswordReset(BaseModel):
     identifier: str = Field(min_length=1, max_length=320)
+
+
+class PasswordResetCompletion(BaseModel):
+    reset_token: str = Field(min_length=32, max_length=4096)
+    new_password: SecretStr = Field(min_length=1, max_length=4096)
+    confirm_new_password: SecretStr = Field(min_length=1, max_length=4096)
+
+
+class TemporaryPasswordCompletion(BaseModel):
+    username: str = Field(min_length=1, max_length=320)
+    temporary_password: SecretStr = Field(min_length=1, max_length=4096)
+    new_password: SecretStr = Field(min_length=1, max_length=4096)
+    confirm_new_password: SecretStr = Field(min_length=1, max_length=4096)
+    totp: str | None = Field(default=None, min_length=4, max_length=12)
 
 
 def make_auth_router(
@@ -88,7 +102,13 @@ def make_auth_router(
         if request.headers.get("origin") != origin:
             raise HTTPException(403, "Invalid request origin")
 
-    async def core(method: str, path: str, body: dict | None = None) -> dict:
+    async def core(
+        method: str,
+        path: str,
+        body: dict | None = None,
+        *,
+        error_mode: Literal["generic", "password-reset-complete"] = "generic",
+    ) -> dict:
         try:
             # Do not inherit bearer auth, cookies or headers from a user request.
             response = await client.request(
@@ -108,7 +128,14 @@ def make_auth_router(
             headers = None
             if status == 429 and response.headers.get("Retry-After"):
                 headers = {"Retry-After": response.headers["Retry-After"]}
-            raise HTTPException(status, "Tenant sign-in could not be completed", headers=headers)
+            detail = "Tenant sign-in could not be completed"
+            if error_mode == "password-reset-complete":
+                if status == 401:
+                    detail = "Password reset token is invalid or expired."
+                elif status in {409, 422, 429, 503} and isinstance(challenge, str):
+                    # These public Core errors are deliberately sanitized and actionable.
+                    detail = challenge
+            raise HTTPException(status, detail, headers=headers)
         if not isinstance(data, dict):
             raise HTTPException(502, "Unsupported tenant auth response")
         return data
@@ -116,12 +143,20 @@ def make_auth_router(
     async def config() -> dict:
         data = await core("GET", "/config")
         password_reset_enabled = data.get("password_reset_enabled", False)
+        completion_modes = data.get("password_reset_completion_modes", [])
         if (data.get("tenant_slug") != tenant_slug
                 or not isinstance(data.get("credential_login_enabled"), bool)
                 or not isinstance(password_reset_enabled, bool)
+                or not isinstance(completion_modes, list)
+                or any(not isinstance(mode, str) or mode not in {"keycloak", "application"}
+                       for mode in completion_modes)
                 or not isinstance(data.get("sso_connectors"), list)):
             raise HTTPException(502, "Unsupported tenant auth configuration")
-        data = {**data, "password_reset_enabled": password_reset_enabled}
+        data = {
+            **data,
+            "password_reset_enabled": password_reset_enabled,
+            "password_reset_completion_modes": completion_modes,
+        }
         connectors = data["sso_connectors"]
         if any(not isinstance(item, dict) or not isinstance(item.get("alias"), str)
                or not isinstance(item.get("display_name"), str)
@@ -152,6 +187,7 @@ def make_auth_router(
         return {
             "credential_login_enabled": data["credential_login_enabled"],
             "password_reset_enabled": data["password_reset_enabled"],
+            "password_reset_completion_modes": data["password_reset_completion_modes"],
             "sso_connectors": [
                 {"alias": item["alias"], "display_name": item["display_name"]}
                 for item in enabled_connectors(data)
@@ -168,7 +204,34 @@ def make_auth_router(
         same_origin(request)
         if not (await config())["credential_login_enabled"]:
             raise HTTPException(403, "Credential login is disabled")
-        tokens = await core("POST", "/login", payload.model_dump(exclude_none=True))
+        tokens = await core("POST", "/login", {
+            "username": payload.username,
+            "password": payload.password.get_secret_value(),
+            **({"totp": payload.totp} if payload.totp else {}),
+        })
+        return await finish(request, tokens)
+
+    @router.post("/temporary-password")
+    async def complete_temporary_password(payload: TemporaryPasswordCompletion, request: Request):
+        same_origin(request)
+        new_password = payload.new_password.get_secret_value()
+        if new_password != payload.confirm_new_password.get_secret_value():
+            raise HTTPException(422, "New passwords do not match")
+        proof = await core("POST", "/temporary-password/challenge", {
+            "username": payload.username,
+            "temporary_password": payload.temporary_password.get_secret_value(),
+            **({"totp": payload.totp} if payload.totp else {}),
+        })
+        challenge_token = proof.get("challenge_token")
+        expires_in = proof.get("expires_in")
+        if (not isinstance(challenge_token, str) or len(challenge_token) < 32
+                or not isinstance(expires_in, int) or expires_in < 1):
+            raise HTTPException(502, "Unsupported temporary-password challenge response")
+        tokens = await core("POST", "/temporary-password/complete", {
+            "challenge_token": challenge_token,
+            "new_password": new_password,
+            **({"totp": payload.totp} if payload.totp else {}),
+        })
         return await finish(request, tokens)
 
     @router.post("/sso/start")
@@ -214,14 +277,38 @@ def make_auth_router(
     @router.post("/password-reset", status_code=202)
     async def password_reset(payload: PasswordReset, request: Request):
         same_origin(request)
-        if not (await config())["password_reset_enabled"]:
+        auth_config = await config()
+        if not auth_config["password_reset_enabled"]:
             raise HTTPException(409, "Password recovery is disabled")
-        result = await core("POST", "/password-reset", {
+        request_body = {
             "identifier": payload.identifier,
             "redirect_uri": redirect_uri,
-        })
+        }
+        if "application" in auth_config["password_reset_completion_modes"]:
+            request_body["completion_mode"] = "application"
+        result = await core("POST", "/password-reset", request_body)
         if result.get("accepted") is not True:
             raise HTTPException(502, "Unsupported password recovery response")
         return {"accepted": True}
+
+    @router.post("/password-reset/complete")
+    async def complete_password_reset(payload: PasswordResetCompletion, request: Request):
+        same_origin(request)
+        new_password = payload.new_password.get_secret_value()
+        if new_password != payload.confirm_new_password.get_secret_value():
+            raise HTTPException(422, "New passwords do not match")
+        result = await core(
+            "POST",
+            "/password-reset/complete",
+            {
+                "reset_token": payload.reset_token,
+                "new_password": new_password,
+                "redirect_uri": redirect_uri,
+            },
+            error_mode="password-reset-complete",
+        )
+        if result.get("completed") is not True:
+            raise HTTPException(502, "Unsupported password recovery response")
+        return {"completed": True}
 
     return router

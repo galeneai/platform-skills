@@ -2,14 +2,14 @@
 name: galeneai-faber
 description: Build standalone apps for Galene tenants from discovery and an approved blueprint through release and tenant installation. Use for tenant application projects, not for implementing Galene platform internals.
 metadata:
-  version: "0.5.0"
+  version: "0.6.0"
 ---
 
 # Galene.AI Faber
 
 Build an application as an independently released tenant product that uses Galene's public app manifest and APIs. Keep the app stack-free: its local doctor, validation, packaging, and tests must not require a running Galene Compose or Kubernetes stack.
 
-Keep tenant-user sign-in inside the webapp: do not redirect users to Keycloak's login page. Put the sign-in form on the app's own domain and send credentials through its BFF to Galene's documented public tenant-auth API. Galene remains the identity authority; the app must not implement local identity or a service account. Ask for a TOTP only after the public login response explicitly signals an MFA challenge in the verified target contract; a generic 401 or tenant auth configuration is not that signal. Always load the tenant's public auth configuration: show its enabled SSO connectors alongside credentials, respect credential-login disablement, and offer the configured password-recovery flow or a verified tenant Console fallback. Follow [tenant authentication](references/tenant-authentication.md) for the exact flow and [Next.js/Python examples](references/auth-examples.md) when implementing it.
+Keep tenant-user sign-in inside the webapp: do not redirect users to Keycloak's login page. Put the sign-in form on the app's own domain and send credentials through its BFF to Galene's documented public tenant-auth API. Galene remains the identity authority; the app must not implement local identity or a service account. Ask for a TOTP only after the public login or temporary-password proof explicitly signals an MFA challenge in the verified target contract; a generic 401 or tenant auth configuration is not that signal. Always load the tenant's public auth configuration: show its enabled SSO connectors alongside credentials, respect credential-login disablement, complete password recovery in the app when the target advertises that mode, and handle the documented temporary-password first-sign-in flow. Preserve the legacy recovery behavior when the target lacks completion modes. Follow [tenant authentication](references/tenant-authentication.md) for the exact flow and [Next.js/Python examples](references/auth-examples.md) when implementing it.
 
 Treat the app as a standalone product under the app owner's or commissioning tenant's brand, and follow their supplied identity, colors, and design requirements. Do not present it as a Galene.ai product or add a G mark or “powered by Galene” label. When no explicit brand is supplied, use a neutral UI with a descriptive product name and no mandatory Galene platform colors. Do not impose a redesign.
 

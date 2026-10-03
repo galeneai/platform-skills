@@ -18,6 +18,8 @@ spec.loader.exec_module(auth)
 ORIGIN = "https://notes.example.test"
 TX = "00000000-0000-4000-8000-000000000001"
 TOKENS = {"access_token": "EXAMPLE-access-not-real", "refresh_token": "sso.EXAMPLE-not-real", "user": {"user_id": "example-user"}}
+TEMPORARY_CHALLENGE = "EXAMPLE-temporary-challenge-not-real-0000000000000000"
+RESET_TOKEN = "EXAMPLE-reset-token-not-real-000000000000000000000000"
 
 
 class FakePending:
@@ -41,6 +43,7 @@ class AuthExampleTests(unittest.TestCase):
             "tenant_slug": "acme",
             "credential_login_enabled": True,
             "password_reset_enabled": True,
+            "password_reset_completion_modes": ["keycloak", "application"],
             "keycloak": {"url": "https://id.example.test"},
             "sso_connectors": [
                 {"alias": "second", "display_name": "Second", "enabled": True, "display_order": 20},
@@ -49,6 +52,8 @@ class AuthExampleTests(unittest.TestCase):
             ],
         }
         self.login_error = None
+        self.temporary_challenge_error = None
+        self.reset_completion_error = None
         self.client = self.make_client()
 
     def make_client(self):
@@ -64,6 +69,21 @@ class AuthExampleTests(unittest.TestCase):
                 })
             if request.url.path.endswith("/password-reset"):
                 return httpx.Response(202, json={"accepted": True})
+            if request.url.path.endswith("/password-reset/complete"):
+                if self.reset_completion_error:
+                    status, error = self.reset_completion_error
+                    return httpx.Response(status, json=error)
+                return httpx.Response(200, json={"completed": True})
+            if request.url.path.endswith("/temporary-password/challenge"):
+                if self.temporary_challenge_error:
+                    status, error = self.temporary_challenge_error
+                    return httpx.Response(status, json=error)
+                return httpx.Response(200, json={
+                    "challenge_token": TEMPORARY_CHALLENGE,
+                    "expires_in": 300,
+                })
+            if request.url.path.endswith("/temporary-password/complete"):
+                return httpx.Response(200, json=TOKENS)
             if request.url.path.endswith("/login") and self.login_error:
                 return httpx.Response(401, json=self.login_error)
             return httpx.Response(200, json=TOKENS)
@@ -92,6 +112,7 @@ class AuthExampleTests(unittest.TestCase):
         config = response.json()
         self.assertEqual([x["alias"] for x in config["sso_connectors"]], ["first", "second"])
         self.assertTrue(config["password_reset_enabled"])
+        self.assertEqual(config["password_reset_completion_modes"], ["keycloak", "application"])
         self.assertIsNone(config["recovery"])
         self.assertEqual(response.headers["cache-control"], "no-store")
 
@@ -104,13 +125,16 @@ class AuthExampleTests(unittest.TestCase):
         self.assertIn("HttpOnly", response.headers["set-cookie"])
         self.assertNotIn(TOKENS["access_token"], str(response.headers))
 
-    def test_generic_401_does_not_become_mfa_but_explicit_challenge_does(self):
+    def test_generic_401_does_not_become_a_flow_but_explicit_challenges_do(self):
         self.login_error = {"detail": "invalid credentials"}
         self.assertIsInstance(self.post("/auth/login", {"username": "example", "password": "example"}).json()["detail"], str)
         self.login_error = {"detail": {"challenge": "totp_required", "sensitive_extra": "discard"}}
         response = self.post("/auth/login", {"username": "example", "password": "example"})
         self.assertEqual(response.json()["detail"]["challenge"], "totp_required")
         self.assertNotIn("sensitive_extra", response.text)
+        self.login_error = {"detail": {"challenge": "password_update_required"}}
+        response = self.post("/auth/login", {"username": "example", "password": "example"})
+        self.assertEqual(response.json()["detail"]["challenge"], "password_update_required")
 
     def test_sso_only_disables_credentials(self):
         self.auth_config["credential_login_enabled"] = False
@@ -151,8 +175,100 @@ class AuthExampleTests(unittest.TestCase):
         self.assertEqual(response.json(), {"accepted": True})
         self.assertEqual(self.calls[-1], (
             "/public/tenants/acme/auth/password-reset",
-            {"identifier": "someone@example.test", "redirect_uri": ORIGIN + "/login"},
+            {
+                "identifier": "someone@example.test",
+                "redirect_uri": ORIGIN + "/login",
+                "completion_mode": "application",
+            },
         ))
+
+    def test_legacy_reset_config_omits_unsupported_completion_mode(self):
+        self.auth_config.pop("password_reset_completion_modes")
+        response = self.post("/auth/password-reset", {"identifier": "someone@example.test"})
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(self.calls[-1][1], {
+            "identifier": "someone@example.test",
+            "redirect_uri": ORIGIN + "/login",
+        })
+
+    def test_password_reset_completion_uses_fixed_return_and_does_not_sign_in(self):
+        self.auth_config["password_reset_enabled"] = False  # Existing links remain consumable.
+        response = self.post("/auth/password-reset/complete", {
+            "reset_token": RESET_TOKEN,
+            "new_password": "EXAMPLE-new-password-not-real",
+            "confirm_new_password": "EXAMPLE-new-password-not-real",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"completed": True})
+        self.assertEqual(self.calls[-1], (
+            "/public/tenants/acme/auth/password-reset/complete",
+            {
+                "reset_token": RESET_TOKEN,
+                "new_password": "EXAMPLE-new-password-not-real",
+                "redirect_uri": ORIGIN + "/login",
+            },
+        ))
+        self.assertEqual(self.sessions, [])
+
+    def test_expired_or_wrong_tenant_reset_token_is_safe_and_creates_no_session(self):
+        self.reset_completion_error = (
+            401,
+            {"detail": "sensitive tenant mismatch"},
+        )
+        response = self.post("/auth/password-reset/complete", {
+            "reset_token": RESET_TOKEN,
+            "new_password": "EXAMPLE-new-password-not-real",
+            "confirm_new_password": "EXAMPLE-new-password-not-real",
+        })
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()["detail"], "Password reset token is invalid or expired.")
+        self.assertEqual(self.sessions, [])
+
+    def test_temporary_password_is_verified_then_completed_into_normal_session(self):
+        response = self.post("/auth/temporary-password", {
+            "username": "example",
+            "temporary_password": "EXAMPLE-temporary-not-real",
+            "new_password": "EXAMPLE-new-password-not-real",
+            "confirm_new_password": "EXAMPLE-new-password-not-real",
+        })
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(self.calls[-2], (
+            "/public/tenants/acme/auth/temporary-password/challenge",
+            {"username": "example", "temporary_password": "EXAMPLE-temporary-not-real"},
+        ))
+        self.assertEqual(self.calls[-1], (
+            "/public/tenants/acme/auth/temporary-password/complete",
+            {"challenge_token": TEMPORARY_CHALLENGE, "new_password": "EXAMPLE-new-password-not-real"},
+        ))
+        self.assertEqual(self.sessions, [TOKENS])
+        self.assertNotIn(TEMPORARY_CHALLENGE, response.text)
+
+    def test_temporary_password_requests_totp_only_on_explicit_challenge(self):
+        self.temporary_challenge_error = (
+            401,
+            {"detail": {"challenge": "totp_required", "message": "safe"}},
+        )
+        first = self.post("/auth/temporary-password", {
+            "username": "example",
+            "temporary_password": "EXAMPLE-temporary-not-real",
+            "new_password": "EXAMPLE-new-password-not-real",
+            "confirm_new_password": "EXAMPLE-new-password-not-real",
+        })
+        self.assertEqual(first.status_code, 401)
+        self.assertEqual(first.json()["detail"]["challenge"], "totp_required")
+        self.assertFalse(any(path.endswith("/temporary-password/complete") for path, _ in self.calls))
+
+        self.temporary_challenge_error = None
+        second = self.post("/auth/temporary-password", {
+            "username": "example",
+            "temporary_password": "EXAMPLE-temporary-not-real",
+            "new_password": "EXAMPLE-new-password-not-real",
+            "confirm_new_password": "EXAMPLE-new-password-not-real",
+            "totp": "123456",
+        })
+        self.assertEqual(second.status_code, 204)
+        self.assertEqual(self.calls[-2][1]["totp"], "123456")
+        self.assertEqual(self.calls[-1][1]["totp"], "123456")
 
     def test_disabled_password_reset_uses_configured_console_fallback(self):
         self.auth_config["password_reset_enabled"] = False
