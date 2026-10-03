@@ -40,6 +40,7 @@ class AuthExampleTests(unittest.TestCase):
         self.auth_config = {
             "tenant_slug": "acme",
             "credential_login_enabled": True,
+            "password_reset_enabled": True,
             "keycloak": {"url": "https://id.example.test"},
             "sso_connectors": [
                 {"alias": "second", "display_name": "Second", "enabled": True, "display_order": 20},
@@ -50,7 +51,7 @@ class AuthExampleTests(unittest.TestCase):
         self.login_error = None
         self.client = self.make_client()
 
-    def make_client(self, supported=True):
+    def make_client(self):
         async def upstream(request):
             body = json.loads(request.content) if request.content else None
             self.calls.append((request.url.path, body))
@@ -61,6 +62,8 @@ class AuthExampleTests(unittest.TestCase):
                     "transaction_id": TX,
                     "authorization_url": "https://id.example.test/realms/acme/protocol/openid-connect/auth?state=EXAMPLE",
                 })
+            if request.url.path.endswith("/password-reset"):
+                return httpx.Response(202, json={"accepted": True})
             if request.url.path.endswith("/login") and self.login_error:
                 return httpx.Response(401, json=self.login_error)
             return httpx.Response(200, json=TOKENS)
@@ -74,8 +77,9 @@ class AuthExampleTests(unittest.TestCase):
         upstream_client = httpx.AsyncClient(transport=httpx.MockTransport(upstream))
         app.include_router(auth.make_auth_router(
             api_base_url="https://core.example.test", tenant_slug="acme",
-            app_origin=ORIGIN, console_recovery_url="https://console.example.test/login",
-            sso_supported=supported, pending=self.pending, establish_session=establish,
+            app_origin=ORIGIN, login_path="/login",
+            console_fallback_url="https://console.example.test/login",
+            pending=self.pending, establish_session=establish,
             client=upstream_client,
         ))
         return TestClient(app, base_url=ORIGIN)
@@ -83,11 +87,12 @@ class AuthExampleTests(unittest.TestCase):
     def post(self, path, body, client=None):
         return (client or self.client).post(path, json=body, headers={"Origin": ORIGIN})
 
-    def test_config_orders_enabled_providers_and_offers_console_recovery(self):
+    def test_config_orders_enabled_providers_and_exposes_password_recovery(self):
         response = self.client.get("/auth/config")
         config = response.json()
         self.assertEqual([x["alias"] for x in config["sso_connectors"]], ["first", "second"])
-        self.assertEqual(config["recovery"], {"mode": "console", "url": "https://console.example.test/login"})
+        self.assertTrue(config["password_reset_enabled"])
+        self.assertIsNone(config["recovery"])
         self.assertEqual(response.headers["cache-control"], "no-store")
 
     def test_initial_credentials_have_no_totp_and_tokens_stay_server_side(self):
@@ -140,12 +145,28 @@ class AuthExampleTests(unittest.TestCase):
         self.assertEqual(self.post("/auth/sso/exchange", {"transaction_id": "different-transaction.EXAMPLE-code"}).status_code, 400)
         self.assertEqual(self.sessions, [])
 
-    def test_unsupported_app_does_not_start_sso(self):
-        client = self.make_client(supported=False)
-        self.assertFalse(client.get("/auth/config").json()["sso_supported"])
+    def test_password_reset_uses_registered_login_path_and_neutral_acceptance(self):
+        response = self.post("/auth/password-reset", {"identifier": "someone@example.test"})
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.json(), {"accepted": True})
+        self.assertEqual(self.calls[-1], (
+            "/public/tenants/acme/auth/password-reset",
+            {"identifier": "someone@example.test", "redirect_uri": ORIGIN + "/login"},
+        ))
+
+    def test_disabled_password_reset_uses_configured_console_fallback(self):
+        self.auth_config["password_reset_enabled"] = False
+        config = self.client.get("/auth/config").json()
+        self.assertEqual(config["recovery"], {"mode": "console", "url": "https://console.example.test/login"})
         self.calls.clear()
-        self.assertEqual(self.post("/auth/sso/start", {"alias": "first"}, client).status_code, 409)
-        self.assertEqual(self.calls, [])
+        self.assertEqual(self.post("/auth/password-reset", {"identifier": "someone"}).status_code, 409)
+        self.assertFalse(any(path.endswith("/password-reset") for path, _ in self.calls))
+
+    def test_legacy_config_without_reset_flag_uses_console_fallback(self):
+        self.auth_config.pop("password_reset_enabled")
+        config = self.client.get("/auth/config").json()
+        self.assertFalse(config["password_reset_enabled"])
+        self.assertEqual(config["recovery"], {"mode": "console", "url": "https://console.example.test/login"})
 
     def test_tenant_mismatch_does_not_enable_login(self):
         self.auth_config["tenant_slug"] = "other"

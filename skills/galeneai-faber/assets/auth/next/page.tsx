@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 
 type AuthConfig = {
   credential_login_enabled: boolean;
+  password_reset_enabled: boolean;
   sso_connectors: { alias: string; display_name: string }[];
-  sso_supported: boolean;
   recovery: { mode: "console"; url: string } | null;
 };
 
@@ -36,6 +36,8 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(true);
   const [needsTotp, setNeedsTotp] = useState(false);
+  const [recovery, setRecovery] = useState(false);
+  const [recoverySent, setRecoverySent] = useState(false);
   const callbackHandled = useRef(false);
 
   useEffect(() => {
@@ -110,11 +112,37 @@ export default function LoginPage() {
     }
   }
 
+  async function requestRecovery(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const values = new FormData(event.currentTarget);
+    setBusy(true);
+    setMessage("");
+    try {
+      await post("/auth/password-reset", { identifier: values.get("identifier") });
+      setRecoverySent(true);
+      setMessage("Se l'account esiste e può usare la password, riceverà le istruzioni di recupero.");
+    } catch {
+      setMessage("Recupero password non disponibile. Riprova più tardi.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <main>
       <h1>Accedi</h1>
       <p role="status" aria-live="polite">{message || (busy ? "Attendi…" : "")}</p>
-      {config?.credential_login_enabled && (
+      {recovery ? (
+        <form onSubmit={requestRecovery}>
+          {!recoverySent && <fieldset disabled={busy}>
+            <label>Email o nome utente <input name="identifier" autoComplete="username" required /></label>
+            <button type="submit">Invia le istruzioni di recupero</button>
+          </fieldset>}
+          <button type="button" onClick={() => { setRecovery(false); setRecoverySent(false); setMessage(""); }}>
+            Torna all'accesso
+          </button>
+        </form>
+      ) : config?.credential_login_enabled && (
         <form onSubmit={login}>
           <fieldset disabled={busy}>
             <label>Nome utente <input name="username" autoComplete="username" required /></label>
@@ -126,16 +154,18 @@ export default function LoginPage() {
           </fieldset>
         </form>
       )}
-      {config?.sso_connectors.map((connector) => (
-        <button key={connector.alias} disabled={busy || !config.sso_supported}
+      {!recovery && config?.sso_connectors.map((connector) => (
+        <button key={connector.alias} disabled={busy}
           onClick={() => void sso(connector.alias)}>
           Accedi con {connector.display_name}
         </button>
       ))}
-      {config && config.sso_connectors.length > 0 && !config.sso_supported && (
-        <p>Questo ambiente offre SSO nella console; il ritorno a questa app non è disponibile.</p>
+      {!recovery && config?.password_reset_enabled && (
+        <button type="button" disabled={busy} onClick={() => { setRecovery(true); setMessage(""); }}>
+          Password dimenticata?
+        </button>
       )}
-      {config?.recovery && (
+      {!recovery && config?.recovery && (
         <p><a href={config.recovery.url}>Gestisci l'accesso nella console del tenant</a></p>
       )}
     </main>

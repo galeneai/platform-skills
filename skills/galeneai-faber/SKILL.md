@@ -2,7 +2,7 @@
 name: galeneai-faber
 description: Build standalone apps for Galene tenants from discovery and an approved blueprint through release and tenant installation. Use for tenant application projects, not for implementing Galene platform internals.
 metadata:
-  version: "0.4.0"
+  version: "0.5.0"
 ---
 
 # Galene.AI Faber

@@ -50,11 +50,15 @@ class SSOExchange(BaseModel):
     transaction_id: str = Field(min_length=20, max_length=512)
 
 
+class PasswordReset(BaseModel):
+    identifier: str = Field(min_length=1, max_length=200)
+
+
 def make_auth_router(
     *, api_base_url: str, tenant_slug: str, app_origin: str,
-    console_recovery_url: str | None, sso_supported: bool,
     pending: PendingStore, establish_session: EstablishSession,
     client: httpx.AsyncClient,
+    login_path: str = "/login", console_fallback_url: str | None = None,
 ) -> APIRouter:
     """Mount on the app's origin; no caller-provided upstream URLs or tenants.
 
@@ -69,9 +73,14 @@ def make_auth_router(
         raise ValueError("app_origin must be an origin without a path")
     if not tenant_slug:
         raise ValueError("Explicit tenant slug required")
-    if sso_supported and urlsplit(origin).port is not None:
-        raise ValueError("This facade requires a registered HTTPS /login URL without a port")
-    recovery = https_url(console_recovery_url) if console_recovery_url else None
+    if urlsplit(origin).port is not None:
+        raise ValueError("This facade requires a registered HTTPS login URL without a port")
+    if not login_path.startswith("/") or login_path.startswith("//") or any(
+        marker in login_path for marker in ("?", "#")
+    ):
+        raise ValueError("login_path must be an absolute path without query or fragment")
+    redirect_uri = origin + login_path
+    fallback = https_url(console_fallback_url) if console_fallback_url else None
     base = f"{api_base}/public/tenants/{quote(tenant_slug, safe='')}/auth"
     router = APIRouter(prefix="/auth")
 
@@ -96,17 +105,23 @@ def make_auth_router(
                 raise HTTPException(401, {"challenge": challenge["challenge"],
                                           "message": "Additional sign-in step required"})
             status = response.status_code if response.status_code in {400, 401, 403, 409, 422, 429, 503} else 502
-            raise HTTPException(status, "Tenant sign-in could not be completed")
+            headers = None
+            if status == 429 and response.headers.get("Retry-After"):
+                headers = {"Retry-After": response.headers["Retry-After"]}
+            raise HTTPException(status, "Tenant sign-in could not be completed", headers=headers)
         if not isinstance(data, dict):
             raise HTTPException(502, "Unsupported tenant auth response")
         return data
 
     async def config() -> dict:
         data = await core("GET", "/config")
+        password_reset_enabled = data.get("password_reset_enabled", False)
         if (data.get("tenant_slug") != tenant_slug
                 or not isinstance(data.get("credential_login_enabled"), bool)
+                or not isinstance(password_reset_enabled, bool)
                 or not isinstance(data.get("sso_connectors"), list)):
             raise HTTPException(502, "Unsupported tenant auth configuration")
+        data = {**data, "password_reset_enabled": password_reset_enabled}
         connectors = data["sso_connectors"]
         if any(not isinstance(item, dict) or not isinstance(item.get("alias"), str)
                or not isinstance(item.get("display_name"), str)
@@ -136,13 +151,16 @@ def make_auth_router(
         response.headers["Cache-Control"] = "no-store"
         return {
             "credential_login_enabled": data["credential_login_enabled"],
+            "password_reset_enabled": data["password_reset_enabled"],
             "sso_connectors": [
                 {"alias": item["alias"], "display_name": item["display_name"]}
                 for item in enabled_connectors(data)
             ],
-            "sso_supported": sso_supported,
-            # App adapter config, not an invented Core password-reset field.
-            "recovery": {"mode": "console", "url": recovery} if recovery else None,
+            "recovery": (
+                {"mode": "console", "url": fallback}
+                if not data["password_reset_enabled"] and fallback
+                else None
+            ),
         }
 
     @router.post("/login")
@@ -156,14 +174,12 @@ def make_auth_router(
     @router.post("/sso/start")
     async def start(payload: SSOChoice, request: Request):
         same_origin(request)
-        if not sso_supported:
-            raise HTTPException(409, "App return host is not supported by the tenant SSO contract")
         data = await config()
         if payload.alias not in {item["alias"] for item in enabled_connectors(data)}:
             raise HTTPException(400, "SSO connector is not enabled")
         binding = secrets.token_urlsafe(48)
         started = await core("POST", "/sso/start", {
-            "alias": payload.alias, "redirect_uri": origin + "/login",
+            "alias": payload.alias, "redirect_uri": redirect_uri,
             "browser_binding": binding,
         })
         authorization_url = started.get("authorization_url")
@@ -186,8 +202,6 @@ def make_auth_router(
     @router.post("/sso/exchange")
     async def exchange(payload: SSOExchange, request: Request):
         same_origin(request)
-        if not sso_supported:
-            raise HTTPException(409, "SSO is unavailable for this app")
         key = request.cookies.get(PENDING_COOKIE)
         state = await pending.take(key) if key else None
         if not state or payload.transaction_id.split(".", 1)[0] != state["transaction_id"]:
@@ -196,5 +210,18 @@ def make_auth_router(
             "transaction_id": payload.transaction_id, "browser_binding": state["binding"],
         })
         return await finish(request, tokens)
+
+    @router.post("/password-reset", status_code=202)
+    async def password_reset(payload: PasswordReset, request: Request):
+        same_origin(request)
+        if not (await config())["password_reset_enabled"]:
+            raise HTTPException(409, "Password recovery is disabled")
+        result = await core("POST", "/password-reset", {
+            "identifier": payload.identifier,
+            "redirect_uri": redirect_uri,
+        })
+        if result.get("accepted") is not True:
+            raise HTTPException(502, "Unsupported password recovery response")
+        return {"accepted": True}
 
     return router
