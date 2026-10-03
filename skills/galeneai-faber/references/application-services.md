@@ -2,7 +2,7 @@
 
 ## Contract status
 
-This guide is an authoring preview of the application-services contract being integrated in Platform Core on 2026-10-03. The packaged manifest/OpenAPI snapshots still pin Core `454deb5c990a546092f23337ee06235af493e6d9` and do **not** include this extension. Their hashes and compatibility record remain unchanged. Finalize this reference and refresh the snapshots from the exact committed Core revision before packaging or installing an app that uses services. A live target OpenAPI download cannot replace that maintenance step. See [contracts](contracts.md).
+This guide is an authoring preview checked against Platform Core `c1b4460d0d03f8632177823eba0c6ae5fd07172f` on 2026-10-03, including its documented service resource and credential management routes. The packaged manifest/OpenAPI snapshots still pin Core `454deb5c990a546092f23337ee06235af493e6d9` and do **not** include this extension. Their hashes and compatibility record remain unchanged. Finalize this reference and refresh the snapshots from the exact committed Core revision before packaging or installing an app that uses services. A live target OpenAPI download cannot replace that maintenance step. See [contracts](contracts.md).
 
 ## Declare intent in manifest 1.0
 
@@ -48,7 +48,7 @@ Authorized operators choose resources from:
 - `GET /controlplane/tenants/{tenant_id}/application-service-resources` with `controlplane.applications.deploy`;
 - `GET /tenant/application-service-resources` with `application.install` or `application.update`.
 
-The resource catalog uses the standard response envelope with `result` containing `{id, name, kind, access}` entries. Select IDs only from the catalog for the explicit target tenant. Core checks current resource authority again; a saved selection is not permanent access.
+Both catalog routes return HTTP 200 in the standard response envelope with `result` containing `{id, name, kind, access}` entries and `total` equal to the returned count. They are unpaginated and expose no credentials or MCP schema pins. Select IDs only from the catalog for the explicit target tenant. Core checks current resource authority again; a saved selection is not permanent access.
 
 The deployment request supplies `approved_services` as logical service role names and `service_bindings` as resource-role mappings to `{resource_id, access}`. There are no automatic grants. Required approvals/bindings must be complete for installation and upgrade. Settings may revoke a required service without uninstalling the app; subsequent calls fail authorization. On PATCH, omit unchanged fields to preserve grants/bindings; an empty list/map explicitly changes the selection. See [examples](application-services-examples.md).
 
@@ -66,7 +66,16 @@ These names are reserved: do not redeclare them in `env_schema`, request them fr
 
 Exchange the bootstrap credential at `POST /v1/services/token` using `{bootstrap_token}`. The token DTO contains `{access_token, token_type: "Bearer", expires_in}`. Use the short access token as `Authorization: Bearer ...` for service operations. Current source sets `expires_in` to 300 seconds; renew using the returned lifetime, not a hardcoded timer. Keep tokens server-side and acquire a fresh access token when grants change. Do not send the bootstrap credential to another API or use it as a tenant-user token.
 
-Revocation, suspension, uninstall, component targeting, tenant state, and grant revision are checked by Core. Rotation is a managed deployment action at `POST /tenant/applications/deployments/{deployment_id}/service-credentials/rotate` or `POST /controlplane/tenants/{tenant_id}/application-deployments/{deployment_id}/service-credentials/rotate`, and requests redeployment. Credentials are not provider credentials and do not authorize ordinary tenant APIs.
+Revocation, suspension, uninstall, component targeting, tenant state, and grant revision are checked by Core. Credentials are not provider credentials and do not authorize ordinary tenant APIs.
+
+Rotation uses ordinary management authentication, never an application bearer:
+
+| Route | Permission |
+|---|---|
+| `POST /tenant/applications/deployments/{deployment_id}/service-credentials/rotate` | `application.update` |
+| `POST /controlplane/tenants/{tenant_id}/application-deployments/{deployment_id}/service-credentials/rotate` | `controlplane.applications.deploy` |
+
+Both routes return HTTP 200 with `result: {deployment_id, service_grant_revision}` in the standard response envelope. They take no credential request body and reveal no new secret. Core increments the revision, invalidates previous tokens and stored operation/job authority, and requests redeployment to inject new bootstrap credentials. Observe deployment readiness separately. Each repeat rotates again; these routes have no idempotency key. An unavailable/wrong-tenant deployment returns 404; a deployment without `desired_status: "deployed"` or its immutable version returns 409.
 
 ## User delegation and offline consent
 
@@ -102,6 +111,16 @@ The list returns a direct array, newest first, with `limit` default 25 and range
 Cancel returns HTTP 202 with the operation DTO. It marks `cancel_requested` for nonterminal work and dispatches the request; terminal work stays terminal. Poll for the final status. Completed effects are not undone. Artifacts are byte responses, available only after `succeeded`: `file` reads a result artifact from a currently bound filesystem; `web`, `sandbox` and `result` read the exact recorded JSON snapshot if present. A storage key in the result is not a URL and must not be fetched directly. An absent artifact returns `artifact_not_found`, and unfinished work returns `result_not_ready`. Token/artifact responses use `Cache-Control: no-store`.
 
 Auth failures include `invalid_application_credential`, `invalid_application_token`, `application_credential_revoked`, `application_grants_changed`, `application_inactive`, and `tenant_inactive`. Authorization/configuration failures include `service_not_granted`, `operation_not_granted`, `resource_not_configured`, `resource_access_denied`, `model_role_unavailable`, and `model_role_denied`. Error HTTP details use `{code, message}`. On invalid/expired access tokens, refresh through the bootstrap exchange; on revocation or denied access, show the missing approval and refer it to the authorized installer. Do not loop refresh to bypass denial. Surface provider/capacity/processing failures as recoverable workflow errors according to the final public contract.
+
+## Browser and sandbox lifecycle
+
+Browser contexts and warm sandbox runtimes belong to the exact tenant, deployment, component, actor and recorded authority. A context ID is a handle, not an access grant. Core rechecks authority during work and reconciles retained runtimes after revocation, rotation, binding changes, delegation/consent expiry, suspension or uninstall. Cleanup uses persisted ownership to contain the old runtime without granting new application access or touching a replacement owner.
+
+For a browser, submit `web.browsing` with `action: "close"` and its returned `context_id`, then poll that close operation. Show closed only after `succeeded` with `result.status: "closed"`. Public operation cancellation requests interruption; it does not itself attest provider closure. Core retains cleanup uncertainty when the old browser worker/provider does not acknowledge closure, including `browser_provider_close_unconfirmed`; loss of a lease or worker is not proof that the provider closed.
+
+Sandbox operation completion/cancellation and runtime containment are separate. Core requires an exact-owner stop acknowledgement (or confirmed absence at that owner) for revocation cleanup. `sandbox_cleanup_unconfirmed` and `sandbox_cleanup_unavailable` preserve failed/unconfirmed containment; stopped execution does not mean the retained VFS/root has finished asynchronous cleanup. These cleanup codes describe Core lifecycle failures, not additional application endpoints. Do not call private sandbox lifecycle APIs or present internal cleanup as complete from an operation's terminal status alone.
+
+If interruption cannot confirm the external effect or cleanup, the operation reports `operation_outcome_uncertain`. Present that uncertainty and preserve the operation ID/idempotency key; a fresh submission is not a safe automatic recovery. After authority is removed, operation reads may themselves be denied. Do not fabricate a closed state from that denial; refer unresolved containment to the platform operator.
 
 ## Choose each service directly
 

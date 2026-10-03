@@ -1,6 +1,8 @@
 # Application jobs, callbacks and notifications
 
-Read [application services](application-services.md) first. This source preview follows Platform Core `93e7043a7db51c75f0a79b7f96eee6c9049e6ef1` for jobs/consent/callback/notification contracts and the probe app `00a2176d09adc191b23ad00c59c5f965a7de98e3` for concrete usage. It does not update or replace the packaged Core snapshot. Meet the [contract-status gate](application-services.md#contract-status) before publishing a service-dependent app; app builders use the resulting public contract, without requiring Core source access.
+Read [application services](application-services.md) first. This source preview follows Platform Core `c1b4460d0d03f8632177823eba0c6ae5fd07172f` for jobs/consent/callback/notification contracts and the probe app `00a2176d09adc191b23ad00c59c5f965a7de98e3` for concrete usage. It does not update or replace the packaged Core snapshot. Meet the [contract-status gate](application-services.md#contract-status) before publishing a service-dependent app; app builders use the resulting public contract, without requiring Core source access.
+
+The eleven ordinary management routes are documented in that Core revision: three job-consent routes and four inbox/preferences routes below, plus the two resource catalogs and two credential-rotation routes in [installation and credentials](application-services.md#installation-and-approval). They use their stated tenant or Control Plane authentication; `/v1/services` application credentials do not replace it. Their inclusion in the packaged OpenAPI remains pending the final committed snapshot.
 
 ## Schedule a declared operation
 

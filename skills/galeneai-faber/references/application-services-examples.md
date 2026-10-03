@@ -71,7 +71,7 @@ Each body goes to `POST /v1/services/operations` with the app access bearer. For
 {"service_role":"research","operation":"browsing","arguments":{"action":"open","url":"https://example.com"}}
 ```
 
-Use the returned `context_id` for subsequent deterministic browsing actions, including `close`. A browser download also supplies `filesystem_role` and a relative `path`; the selected role must grant write access.
+Use the returned `context_id` for subsequent deterministic browsing actions, including `close`. Poll the close operation and show closed only after `succeeded` with `result.status: "closed"`; a cancellation request or lost authority does not prove provider closure. Preserve unconfirmed cleanup as described in [browser and sandbox lifecycle](application-services.md#browser-and-sandbox-lifecycle). A browser download also supplies `filesystem_role` and a relative `path`; the selected role must grant write access.
 
 ```json
 {"service_role":"compute","operation":"execute","arguments":{"filesystem_role":"workspace","command":"python --version","cwd":"/workspace","timeout_seconds":30}}
