@@ -11,7 +11,11 @@ type AuthConfig = {
 };
 
 class AuthError extends Error {
-  constructor(public status?: number, public challenge?: string) {
+  constructor(
+    public status?: number,
+    public challenge?: string,
+    public passwordUpdated = false,
+  ) {
     super("Accesso non riuscito. Riprova.");
   }
 }
@@ -27,9 +31,11 @@ async function post(path: string, body: object): Promise<Response> {
   });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
+    const passwordUpdated = data.detail?.password_updated === true;
     throw new AuthError(
       response.status,
-      response.status === 401 ? data.detail?.challenge : undefined,
+      response.status === 401 || passwordUpdated ? data.detail?.challenge : undefined,
+      passwordUpdated,
     );
   }
   return response;
@@ -147,7 +153,18 @@ export default function LoginPage() {
       setPassword("");
       window.location.replace("/");
     } catch (error) {
-      if (error instanceof AuthError && error.challenge === "totp_required") {
+      if (error instanceof AuthError && error.passwordUpdated) {
+        // The Core challenge was consumed and the temporary password was replaced.
+        setPassword(newPassword);
+        setFirstSignInNeedsTotp(false);
+        if (error.challenge === "totp_required") {
+          setLoginStep("totp");
+          setMessage("Password aggiornata. Inserisci un nuovo codice monouso per accedere.");
+        } else {
+          setLoginStep("credentials");
+          setMessage("Password aggiornata. Accedi con la nuova password.");
+        }
+      } else if (error instanceof AuthError && error.challenge === "totp_required") {
         setFirstSignInNeedsTotp(true);
         setMessage("Inserisci il codice monouso per cambiare la password.");
       } else {

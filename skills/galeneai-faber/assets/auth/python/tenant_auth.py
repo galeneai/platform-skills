@@ -37,7 +37,7 @@ def url_origin(value: str) -> str:
 
 
 class Credentials(BaseModel):
-    username: str = Field(min_length=1, max_length=200)
+    username: str = Field(min_length=1, max_length=320)
     password: SecretStr = Field(min_length=1, max_length=4096)
     totp: str | None = Field(default=None, min_length=4, max_length=12)
 
@@ -107,7 +107,9 @@ def make_auth_router(
         path: str,
         body: dict | None = None,
         *,
-        error_mode: Literal["generic", "password-reset-complete"] = "generic",
+        error_mode: Literal[
+            "generic", "password-reset-complete", "temporary-password-complete"
+        ] = "generic",
     ) -> dict:
         try:
             # Do not inherit bearer auth, cookies or headers from a user request.
@@ -120,14 +122,25 @@ def make_auth_router(
             raise HTTPException(502, "Tenant sign-in service unavailable") from None
         if not response.is_success:
             challenge = data.get("detail") if isinstance(data, dict) else None
+            status = response.status_code if response.status_code in {
+                400, 401, 403, 409, 422, 429, 503
+            } else 502
+            headers = None
+            if status == 429 and response.headers.get("Retry-After"):
+                headers = {"Retry-After": response.headers["Retry-After"]}
+            if (error_mode == "temporary-password-complete"
+                    and isinstance(challenge, dict)
+                    and challenge.get("password_updated") is True
+                    and challenge.get("challenge") in {"totp_required", "sign_in_required"}):
+                raise HTTPException(status, {
+                    "challenge": challenge["challenge"],
+                    "password_updated": True,
+                    "message": "Password updated. Sign in again.",
+                }, headers=headers)
             if (response.status_code == 401 and isinstance(challenge, dict)
                     and challenge.get("challenge") in {"totp_required", "password_update_required"}):
                 raise HTTPException(401, {"challenge": challenge["challenge"],
                                           "message": "Additional sign-in step required"})
-            status = response.status_code if response.status_code in {400, 401, 403, 409, 422, 429, 503} else 502
-            headers = None
-            if status == 429 and response.headers.get("Retry-After"):
-                headers = {"Retry-After": response.headers["Retry-After"]}
             detail = "Tenant sign-in could not be completed"
             if error_mode == "password-reset-complete":
                 if status == 401:
@@ -214,6 +227,8 @@ def make_auth_router(
     @router.post("/temporary-password")
     async def complete_temporary_password(payload: TemporaryPasswordCompletion, request: Request):
         same_origin(request)
+        if not (await config())["credential_login_enabled"]:
+            raise HTTPException(403, "Credential login is disabled")
         new_password = payload.new_password.get_secret_value()
         if new_password != payload.confirm_new_password.get_secret_value():
             raise HTTPException(422, "New passwords do not match")
@@ -227,11 +242,16 @@ def make_auth_router(
         if (not isinstance(challenge_token, str) or len(challenge_token) < 32
                 or not isinstance(expires_in, int) or expires_in < 1):
             raise HTTPException(502, "Unsupported temporary-password challenge response")
-        tokens = await core("POST", "/temporary-password/complete", {
-            "challenge_token": challenge_token,
-            "new_password": new_password,
-            **({"totp": payload.totp} if payload.totp else {}),
-        })
+        tokens = await core(
+            "POST",
+            "/temporary-password/complete",
+            {
+                "challenge_token": challenge_token,
+                "new_password": new_password,
+                **({"totp": payload.totp} if payload.totp else {}),
+            },
+            error_mode="temporary-password-complete",
+        )
         return await finish(request, tokens)
 
     @router.post("/sso/start")

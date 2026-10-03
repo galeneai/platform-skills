@@ -53,6 +53,7 @@ class AuthExampleTests(unittest.TestCase):
         }
         self.login_error = None
         self.temporary_challenge_error = None
+        self.temporary_complete_error = None
         self.reset_completion_error = None
         self.client = self.make_client()
 
@@ -83,6 +84,9 @@ class AuthExampleTests(unittest.TestCase):
                     "expires_in": 300,
                 })
             if request.url.path.endswith("/temporary-password/complete"):
+                if self.temporary_complete_error:
+                    status, error = self.temporary_complete_error
+                    return httpx.Response(status, json=error)
                 return httpx.Response(200, json=TOKENS)
             if request.url.path.endswith("/login") and self.login_error:
                 return httpx.Response(401, json=self.login_error)
@@ -269,6 +273,41 @@ class AuthExampleTests(unittest.TestCase):
         self.assertEqual(second.status_code, 204)
         self.assertEqual(self.calls[-2][1]["totp"], "123456")
         self.assertEqual(self.calls[-1][1]["totp"], "123456")
+
+    def test_temporary_password_preserves_typed_post_update_login_challenge(self):
+        self.temporary_complete_error = (
+            401,
+            {"detail": {
+                "challenge": "totp_required",
+                "password_updated": True,
+                "sensitive_extra": "discard",
+            }},
+        )
+        response = self.post("/auth/temporary-password", {
+            "username": "example",
+            "temporary_password": "EXAMPLE-temporary-not-real",
+            "new_password": "EXAMPLE-new-password-not-real",
+            "confirm_new_password": "EXAMPLE-new-password-not-real",
+        })
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()["detail"], {
+            "challenge": "totp_required",
+            "password_updated": True,
+            "message": "Password updated. Sign in again.",
+        })
+        self.assertNotIn("sensitive_extra", response.text)
+        self.assertEqual(self.sessions, [])
+
+    def test_temporary_password_respects_disabled_credential_login(self):
+        self.auth_config["credential_login_enabled"] = False
+        response = self.post("/auth/temporary-password", {
+            "username": "example",
+            "temporary_password": "EXAMPLE-temporary-not-real",
+            "new_password": "EXAMPLE-new-password-not-real",
+            "confirm_new_password": "EXAMPLE-new-password-not-real",
+        })
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(any(path.endswith("/temporary-password/challenge") for path, _ in self.calls))
 
     def test_disabled_password_reset_uses_configured_console_fallback(self):
         self.auth_config["password_reset_enabled"] = False
