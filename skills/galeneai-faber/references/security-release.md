@@ -43,6 +43,10 @@ Maintain a small compatibility matrix alongside the app project:
 
 Also record any required Core range from the app manifest. An API or schema snapshot change needs a new matrix entry and compatibility check; do not silently edit a released app to match a newer contract.
 
+## Operational logging
+
+Before release, check that every component writes [the platform log format](logging.md) to stdout/stderr with `LOG_FORMAT=json` by default: one JSON object per line, including the startup banner and access logs, with no log files. Logs carry ids, statuses, and durations, never credentials, cookies, tokens, prompts, model output, or document content. Include the correlation and trace ids returned by Core in sanitized diagnoses.
+
 ## Delivery and installation
 
 Keep the app portable across Compose and Kubernetes. Test the same behavior and manifest on each adapter when both are in scope; label a one-adapter result as partial. The package script emits release metadata and a manifest, not a platform-native installer or runtime image.

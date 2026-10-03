@@ -2,7 +2,7 @@
 name: galeneai-faber
 description: Build standalone apps for Galene tenants from discovery and an approved blueprint through release and tenant installation. Use for tenant application projects, not for implementing Galene platform internals.
 metadata:
-  version: "0.3.2"
+  version: "0.4.0"
 ---
 
 # Galene.AI Faber
@@ -27,7 +27,7 @@ Do not infer either from credentials, an existing workspace, or an earlier app. 
 1. Read [discovery and blueprint](references/discovery-and-blueprint.md). Understand the business need, user, current workflow, and observable acceptance result. Produce a short blueprint and wait for the user to approve it before implementation.
 2. Consult [the Galene feature map](references/platform-feature-map.md) only for features relevant to the approved app. Choose public app contracts and tenant capabilities; do not add native Galene code or rely on internal database access. For individual tenant sign-in, user-delegated API calls, or agent/session participation, also read [tenant authentication](references/tenant-authentication.md).
 3. Before writing a manifest, using app APIs, or packaging a release, read [contracts and snapshots](references/contracts.md). Treat the pinned snapshot as the contract at its recorded Platform Core commit. Local validation helps authoring; Core remains authoritative at publication.
-4. After blueprint approval, read [application delivery](references/application-delivery.md). Preflight the public contracts and tenant prerequisites, then build the smallest real user workflow end to end. Verify the behavior and its concrete risks; avoid tests that only duplicate implementation details. Ask for a new approval only when a requirement must expand beyond the approved blueprint.
+4. After blueprint approval, read [application delivery](references/application-delivery.md). Preflight the public contracts and tenant prerequisites, then build the smallest real user workflow end to end. Make every component log in [the platform log format](references/logging.md) from the first slice. Verify the behavior and its concrete risks; avoid tests that only duplicate implementation details. Ask for a new approval only when a requirement must expand beyond the approved blueprint.
 5. Read [security and release](references/security-release.md) before declaring capabilities, database resources, secrets, or release versions. If integrated registry was selected, also read [integrated registry status](references/integrated-registry.md); do not promise multi-component atomic import until its final API is in a committed snapshot.
 6. Use the stack-free tools described in [tooling](references/tooling.md), then follow [publish, availability, and install](references/publish-install.md) to release and install the app. Verify the tenant-visible deployment state when that action is in scope.
 
@@ -46,6 +46,7 @@ Do not infer either from credentials, an existing workspace, or an earlier app. 
 - Read [application delivery](references/application-delivery.md) after blueprint approval for preflight, the first end-to-end slice, targeted verification, and release readiness.
 - Read [the Galene feature map](references/platform-feature-map.md) when choosing Core, models, ingestion, browsing, sandbox, knowledge-base, or connector integration.
 - Read [tenant authentication](references/tenant-authentication.md) when an app authenticates tenant users, calls Core as a user, or participates in agent/session execution.
+- Read [platform log format](references/logging.md) when writing a component's logging setup, Dockerfile, or proxy configuration.
 - Read [contracts and snapshots](references/contracts.md) when shaping a manifest or calling a published app API.
 - Read [security and release](references/security-release.md) when an app handles tenant data, capabilities, app databases, registry images, or installation.
 - Read [integrated registry status](references/integrated-registry.md) only if integrated registry import is selected or discussed.
