@@ -41,7 +41,9 @@ def request_json(
 ) -> Any:
     url = f"{_validated_base_url(base_url)}/{path.lstrip('/')}"
     data = json.dumps(payload).encode("utf-8") if payload is not None else None
-    headers = {"Accept": "application/json", "Authorization": f"Bearer {token}"}
+    headers = {"Accept": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     if data is not None:
         headers["Content-Type"] = "application/json"
     request = urllib.request.Request(url, data=data, headers=headers, method=method)
@@ -58,6 +60,121 @@ def request_json(
         return json.loads(body.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
         raise RuntimeError("application API returned a non-JSON response") from None
+
+
+def _target_schema(document: dict[str, Any], schema: Any) -> dict[str, Any]:
+    """Resolve only local component schema references from the advertised contract."""
+    seen: set[str] = set()
+    while isinstance(schema, dict) and "$ref" in schema:
+        reference = schema["$ref"]
+        if (
+            not isinstance(reference, str)
+            or not reference.startswith("#/components/schemas/")
+            or reference in seen
+        ):
+            raise RuntimeError("target OpenAPI has an unsupported application-service schema reference")
+        seen.add(reference)
+        schema = document["components"]["schemas"].get(reference.rsplit("/", 1)[-1])
+    if not isinstance(schema, dict):
+        raise RuntimeError("target OpenAPI is missing an application-service schema")
+    return schema
+
+
+def _target_properties(document: dict[str, Any], schema: Any) -> dict[str, Any]:
+    properties = _target_schema(document, schema).get("properties")
+    if not isinstance(properties, dict):
+        raise RuntimeError("target OpenAPI is missing application-service schema fields")
+    return properties
+
+
+def verify_service_target(
+    base_url: str,
+    manifest: dict[str, Any] | None,
+    *,
+    auth_context: str = "publisher",
+    api_request: RequestJson | None = None,
+) -> None:
+    """Fail closed for new requirements; Core still validates the full requires_core range."""
+    if not manifest or not (
+        manifest.get("service_requirements") or manifest.get("resource_requirements")
+    ):
+        return
+    requester = api_request or request_json
+    document = requester(_validated_base_url(base_url), "/openapi.json", "", "GET", None)
+    if not isinstance(document, dict):
+        raise RuntimeError("target must advertise a verified Core 1.3 application-service contract")
+    info = document.get("info")
+    version = info.get("version") if isinstance(info, dict) else None
+    release = re.fullmatch(r"([0-9]+)\.([0-9]+)\.([0-9]+)", version) if isinstance(version, str) else None
+    if not release or int(release[1]) != 1 or int(release[2]) < 3:
+        raise RuntimeError("application services require a verified Core >=1.3,<2.0 target")
+    if not str(document.get("openapi", "")).startswith("3."):
+        raise RuntimeError("target OpenAPI does not expose the application-service contract")
+    components = document.get("components")
+    schemas = components.get("schemas") if isinstance(components, dict) else None
+    if not isinstance(schemas, dict):
+        raise RuntimeError("target OpenAPI is missing application-service schemas")
+    manifest_fields = _target_properties(document, schemas.get("ApplicationManifest"))
+    for field, required in (
+        ("service_requirements", {
+            "role": "string", "service": "string", "operations": "array",
+            "resource_roles": "array", "execution_modes": "array",
+        }),
+        ("resource_requirements", {"role": "string", "kind": "string", "access": "string"}),
+    ):
+        requirement = _target_schema(document, manifest_fields.get(field))
+        if requirement.get("type") != "array":
+            raise RuntimeError("target OpenAPI is missing manifest service/resource requirements")
+        fields = _target_properties(document, requirement.get("items"))
+        if any(_target_schema(document, fields.get(name)).get("type") != kind for name, kind in required.items()):
+            raise RuntimeError("target OpenAPI has an unsupported manifest requirement contract")
+    paths = document.get("paths")
+    if not isinstance(paths, dict):
+        raise RuntimeError("target OpenAPI is missing application-service routes")
+    for path, methods in (
+        ("/v1/services/token", ("post",)),
+        ("/v1/services/grants", ("get",)),
+        ("/v1/services/operations", ("post", "get")),
+        ("/v1/services/operations/{operation_id}", ("get",)),
+        ("/v1/services/operations/{operation_id}/cancel", ("post",)),
+        ("/v1/services/operations/{operation_id}/artifacts/{name}", ("get",)),
+    ):
+        if not isinstance(paths.get(path), dict) or not all(
+            isinstance(paths[path].get(method), dict) for method in methods
+        ):
+            raise RuntimeError("target OpenAPI is missing application-service routes")
+    install_path = (
+        "/tenant/applications/deployments" if auth_context == "tenant"
+        else "/controlplane/tenants/{tenant_id}/application-deployments"
+    )
+    route = paths.get(install_path)
+    operation = route.get("post") if isinstance(route, dict) else None
+    body = operation.get("requestBody") if isinstance(operation, dict) else None
+    content = body.get("content") if isinstance(body, dict) else None
+    media = content.get("application/json") if isinstance(content, dict) else None
+    request_schema = media.get("schema") if isinstance(media, dict) else None
+    fields = _target_properties(document, request_schema)
+    approvals = _target_schema(document, fields.get("approved_services"))
+    bindings = _target_schema(document, fields.get("service_bindings"))
+    if approvals.get("type") != "array" or (
+        _target_schema(document, approvals.get("items")).get("type") != "string"
+    ):
+        raise RuntimeError("target OpenAPI is missing explicit application-service approvals")
+    if bindings.get("type") != "object":
+        raise RuntimeError("target OpenAPI is missing explicit application-service resource bindings")
+    binding_schema = _target_schema(document, bindings.get("additionalProperties"))
+    binding_fields = _target_properties(document, binding_schema)
+    if set(binding_fields) != {"resource_id", "access"} or binding_schema.get("additionalProperties") is not False:
+        raise RuntimeError("target OpenAPI has an unsupported public application-service binding contract")
+    resource_id = _target_schema(document, binding_fields.get("resource_id"))
+    access = _target_schema(document, binding_fields.get("access"))
+    if (
+        resource_id.get("type") != "string" or resource_id.get("format") != "uuid"
+        or access.get("type") != "string" or access.get("enum") not in (
+            ["read", "read_write"], ["read_write", "read"]
+        )
+    ):
+        raise RuntimeError("target OpenAPI has an unsupported application-service binding contract")
 
 
 def _result(body: Any) -> Any:
@@ -363,6 +480,7 @@ def install_deployment(
     if deployment_name:
         payload["deployment_name"] = deployment_name
     payload.update(_service_selections(manifest, approved_services, service_bindings))
+    verify_service_target(base_url, manifest, auth_context=auth_context, api_request=api_request)
 
     if auth_context == "tenant":
         required_routes = _required_domain_routes(routes)

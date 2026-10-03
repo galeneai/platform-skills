@@ -6,7 +6,7 @@ The packaged manifest schema and focused OpenAPI pin Platform Core `381114016d3b
 
 ## Declare intent in manifest 1.0
 
-Keep `schema_version` at `"1.0"`. Declare logical service roles in `service_requirements` and tenant resource roles in `resource_requirements`. These declarations request access; installation must separately approve service roles and bind resources.
+Set `app.requires_core` to `">=1.3,<2.0"` for new service releases and keep `schema_version` at `"1.0"`. Core 1.3 is the first qualified release; the earlier pinned implementation is not a guarantee that any Core 1.2 target supports these fields. The installer/publication preflight checks target OpenAPI before mutations; see [the version barrier and pending release pin](contracts.md). Declare logical service roles in `service_requirements` and tenant resource roles in `resource_requirements`. These declarations request access; installation must separately approve service roles and bind resources.
 
 A service entry contains:
 

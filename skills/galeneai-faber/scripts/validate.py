@@ -14,12 +14,13 @@ from typing import Any
 
 from _support import load_json, validate_manifest
 from http_client import open_no_redirect
-from install import _validated_base_url
+from install import _validated_base_url, verify_service_target
 
 
 def server_validate(
     base_url: str, token: str, package_slug: str, version: str, manifest: dict[str, Any]
 ) -> dict[str, Any]:
+    verify_service_target(base_url, manifest)
     url = f"{_validated_base_url(base_url)}/controlplane/application-manifests/validate"
     body = json.dumps(
         {"package_slug": package_slug, "version": version, "manifest": manifest}
@@ -76,6 +77,9 @@ def main() -> int:
         help="require every component image reference to resolve to a sha256 digest",
     )
     parser.add_argument("--server-url", help="opt in to the committed Core server validator")
+    parser.add_argument(
+        "--target-url", help="verify public Core service contract before publication, including archive imports"
+    )
     parser.add_argument("--version", help="app SemVer; required with --server-url")
     parser.add_argument("--package-slug", help="defaults to manifest app.slug")
     args = parser.parse_args()
@@ -92,6 +96,13 @@ def main() -> int:
             print(f"ERROR: {error}", file=sys.stderr)
         print("Offline schema checks do not replace server-side publication validation.", file=sys.stderr)
         return 1
+
+    if args.target_url:
+        try:
+            verify_service_target(args.target_url, manifest)
+        except (ValueError, RuntimeError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 2
 
     if args.server_url and args.flow == "archive-import":
         print(

@@ -24,7 +24,12 @@ sys.path.insert(0, str(SCRIPTS))
 from _support import load_json, validate_manifest  # noqa: E402
 from doctor import doctor as run_doctor  # noqa: E402
 from http_client import NoRedirectHandler, open_no_redirect  # noqa: E402
-from install import _load_service_bindings, install_deployment, request_json  # noqa: E402
+from install import (  # noqa: E402
+    _load_service_bindings,
+    install_deployment,
+    request_json,
+    verify_service_target,
+)
 from install import main as install_main  # noqa: E402
 
 
@@ -38,6 +43,49 @@ def load_script(name: str):
 
 PACKAGE = load_script("package")
 VALIDATE = load_script("validate")
+
+
+def service_target_contract(version="1.3.0"):
+    """Public target fixture with the manifest and installation contract's real fields."""
+    schemas = {
+        "ApplicationManifest": {"properties": {
+            "service_requirements": {"type": "array", "items": {"$ref": "#/components/schemas/ApplicationServiceRequirement"}},
+            "resource_requirements": {"type": "array", "items": {"$ref": "#/components/schemas/ApplicationResourceRequirement"}},
+        }},
+        "ApplicationServiceRequirement": {"properties": {
+            "role": {"type": "string"}, "service": {"type": "string"},
+            "operations": {"type": "array", "items": {"type": "string"}},
+            "resource_roles": {"type": "array", "items": {"type": "string"}},
+            "execution_modes": {"type": "array", "items": {"type": "string"}},
+        }},
+        "ApplicationResourceRequirement": {"properties": {
+            field: {"type": "string"} for field in ("role", "kind", "access")
+        }},
+        "CreateTenantApplicationDeploymentRequest": {"properties": {
+            "approved_services": {"type": "array", "items": {"type": "string"}},
+            "service_bindings": {"type": "object", "additionalProperties": {"$ref": "#/components/schemas/ApplicationServiceBinding"}},
+        }},
+        "ApplicationServiceBinding": {"additionalProperties": False, "properties": {
+            "resource_id": {"type": "string", "format": "uuid"},
+            "access": {"type": "string", "enum": ["read", "read_write"]},
+        }},
+    }
+    install = {"post": {"requestBody": {"content": {"application/json": {
+        "schema": {"$ref": "#/components/schemas/CreateTenantApplicationDeploymentRequest"}
+    }}}}}
+    return {
+        "openapi": "3.1.0", "info": {"version": version}, "components": {"schemas": schemas},
+        "paths": {
+            "/v1/services/token": {"post": {}},
+            "/v1/services/grants": {"get": {}},
+            "/v1/services/operations": {"post": {}, "get": {}},
+            "/v1/services/operations/{operation_id}": {"get": {}},
+            "/v1/services/operations/{operation_id}/cancel": {"post": {}},
+            "/v1/services/operations/{operation_id}/artifacts/{name}": {"get": {}},
+            "/tenant/applications/deployments": install,
+            "/controlplane/tenants/{tenant_id}/application-deployments": install,
+        },
+    }
 
 
 class SkillToolingTests(unittest.TestCase):
@@ -322,6 +370,9 @@ class SkillToolingTests(unittest.TestCase):
 
                 def fake_api(base, path, token, method, payload, calls=calls):
                     calls.append((path, method, payload))
+                    if path == "/openapi.json":
+                        self.assertEqual(token, "")
+                        return service_target_contract()
                     if path == "/controlplane/tenants":
                         return {"result": [{"id": tenant_id, "slug": "acme-test"}]}
                     if path == "/controlplane/applications":
@@ -342,6 +393,116 @@ class SkillToolingTests(unittest.TestCase):
                     "package_id": package_id, "version_id": version_id,
                     "approved_services": ["files"], "service_bindings": bindings,
                 }))
+
+    def test_service_install_rejects_old_or_unknown_target_before_authenticated_calls(self):
+        manifest = {"service_requirements": [{"role": "search"}]}
+        for auth_context in ("tenant", "publisher"):
+            for version in ("1.2.0", "1.2.99", "2.0.0", "unknown", "1.3.0rc1"):
+                with self.subTest(auth_context=auth_context, version=version):
+                    calls = []
+
+                    def api(base, path, token, method, payload, calls=calls, version=version):
+                        calls.append((path, token, method))
+                        return service_target_contract(version)
+
+                    with self.assertRaisesRegex(RuntimeError, "verified Core"):
+                        install_deployment(
+                            base_url="https://core.example", tenant="acme-test", project_tenant="acme-test",
+                            package_id="package-1", version_id="version-1", slug="team-notes",
+                            app_version="1.0.0", token="test-only-secret", auth_context=auth_context,
+                            manifest=manifest, api_request=api,
+                        )
+                    self.assertEqual(calls, [("/openapi.json", "", "GET")])
+
+    def test_service_target_rejects_missing_contract_and_invalid_refs(self):
+        for missing in ("manifest_fields", "field_type", "binding_fields", "binding_authority", "route", "external_ref", "cycle", "bad_components"):
+            with self.subTest(missing=missing):
+                target = service_target_contract()
+                schemas = target["components"]["schemas"]
+                if missing == "manifest_fields":
+                    del schemas["ApplicationManifest"]["properties"]["service_requirements"]
+                elif missing == "field_type":
+                    schemas["ApplicationResourceRequirement"]["properties"]["kind"] = {"type": "integer"}
+                elif missing == "binding_fields":
+                    del schemas["ApplicationServiceBinding"]["properties"]["access"]
+                elif missing == "binding_authority":
+                    schemas["ApplicationServiceBinding"]["properties"]["mcp_tools"] = {"type": "object"}
+                elif missing == "route":
+                    del target["paths"]["/v1/services/operations/{operation_id}/cancel"]
+                elif missing == "external_ref":
+                    schemas["ApplicationServiceBinding"] = {"$ref": "https://untrusted.example/schema"}
+                elif missing == "cycle":
+                    schemas["ApplicationServiceBinding"] = {"$ref": "#/components/schemas/ApplicationServiceBinding"}
+                else:
+                    target["components"] = []
+                for auth_context in ("tenant", "publisher"):
+                    with self.subTest(auth_context=auth_context), patch("install.request_json", return_value=target) as api:
+                        with self.assertRaises(RuntimeError):
+                            install_deployment(
+                                base_url="https://core.example", tenant="acme-test", project_tenant="acme-test",
+                                package_id="package-1", version_id="version-1", slug="team-notes",
+                                app_version="1.0.0", token="test-only-secret", auth_context=auth_context,
+                                manifest={"resource_requirements": [{"role": "workspace"}]}, api_request=api,
+                            )
+                    api.assert_called_once_with("https://core.example", "/openapi.json", "", "GET", None)
+
+    def test_empty_requirements_preserve_legacy_target_flow(self):
+        with patch("install.request_json") as api:
+            verify_service_target("https://core.example", {"service_requirements": [], "resource_requirements": []})
+            verify_service_target("https://core.example", None)
+        api.assert_not_called()
+
+    def test_public_target_request_does_not_send_authorization(self):
+        with patch("install.open_no_redirect") as opener:
+            opener.return_value.__enter__.return_value.read.return_value = b"{}"
+            request_json("https://core.example", "/openapi.json", "")
+        request = opener.call_args.args[0]
+        self.assertIsNone(request.get_header("Authorization"))
+        self.assertEqual(opener.call_args.kwargs["timeout"], 30)
+
+    def test_publication_preflight_rejects_old_target_before_validation_post(self):
+        with patch("install.request_json", return_value=service_target_contract("1.2.0")), \
+             patch.object(VALIDATE, "open_no_redirect") as validator:
+            with self.assertRaisesRegex(RuntimeError, "verified Core"):
+                VALIDATE.server_validate("https://core.example", "test-only-secret", "team-notes", "1.0.0",
+                                         {"service_requirements": [{"role": "search"}]})
+        validator.assert_not_called()
+
+    def test_new_target_keeps_full_requires_core_validation_on_server(self):
+        errors = {"valid": False, "errors": [{
+            "path": "manifest.app.requires_core", "message": "incompatible Core", "type": "value_error"
+        }]}
+        response = urllib.error.HTTPError(
+            "https://core.example/controlplane/application-manifests/validate", 422,
+            "invalid manifest", None, io.BytesIO(json.dumps(errors).encode()),
+        )
+        manifest = {"app": {"requires_core": ">=1.5,<2.0"}, "service_requirements": [{"role": "search"}]}
+        with patch("install.request_json", return_value=service_target_contract()) as target, \
+             patch.object(VALIDATE, "open_no_redirect", side_effect=response) as validator:
+            result = VALIDATE.server_validate("https://core.example", "test-only-secret", "team-notes", "1.0.0", manifest)
+        self.assertFalse(result["valid"])
+        target.assert_called_once_with("https://core.example", "/openapi.json", "", "GET", None)
+        request = validator.call_args.args[0]
+        self.assertEqual(request.method, "POST")
+        self.assertEqual(json.loads(request.data)["manifest"], manifest)
+        self.assertTrue(request.full_url.endswith("/application-manifests/validate"))
+
+    def test_archive_target_gate_is_public_and_does_not_call_direct_validator(self):
+        manifest = load_json(EXAMPLES / "multi-component-archive-import-manifest.json")
+        manifest["app"]["requires_core"] = ">=1.3,<2.0"
+        manifest["service_requirements"] = [{"role": "web_fetch", "service": "web", "operations": ["fetch"]}]
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "galene-app.json"
+            path.write_text(json.dumps(manifest))
+            for version, expected in (("1.2.0", 2), ("1.3.0", 0)):
+                with self.subTest(version=version), \
+                     patch("sys.argv", ["validate.py", str(path), "--flow", "archive-import", "--target-url", "https://core.example"]), \
+                     patch("install.request_json", return_value=service_target_contract(version)) as target, \
+                     patch.object(VALIDATE, "open_no_redirect") as validator, \
+                     patch("sys.stdout", new_callable=io.StringIO), patch("sys.stderr", new_callable=io.StringIO):
+                    self.assertEqual(VALIDATE.main(), expected)
+                target.assert_called_once_with("https://core.example", "/openapi.json", "", "GET", None)
+                validator.assert_not_called()
 
     def test_service_install_rejects_invalid_authority_before_any_http(self):
         resource_id = "44444444-4444-4444-8444-444444444444"
