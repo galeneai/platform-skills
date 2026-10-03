@@ -21,7 +21,7 @@ Merge these fields into an ordinary manifest with named `backend` and `worker` c
     {"role": "knowledge", "service": "retrieval", "operations": ["search", "index"], "resource_roles": ["workspace"], "target_components": ["worker"]},
     {"role": "reasoning", "service": "inference", "operations": ["chat", "embedding", "transcribe"], "execution_modes": ["application", "user"], "target_components": ["backend", "worker"]},
     {"role": "research", "service": "web", "operations": ["search", "fetch", "browsing"], "resource_roles": ["workspace"], "target_components": ["worker"]},
-    {"role": "compute", "service": "sandbox", "operations": ["execute"], "resource_roles": ["workspace"], "target_components": ["worker"]},
+    {"role": "compute", "service": "sandbox", "operations": ["execute", "stop"], "resource_roles": ["workspace"], "target_components": ["worker"]},
     {"role": "reports", "service": "database_connectors", "operations": ["schema.read", "query.read"], "resource_roles": ["reporting"], "target_components": ["backend"]},
     {"role": "cases", "service": "mcp", "operations": ["catalog", "invoke"], "resource_roles": ["case_tools"], "mcp_tools": ["find_case"], "execution_modes": ["user"], "target_components": ["backend"]},
     {"role": "scheduler", "service": "jobs", "operations": ["schedule"], "execution_modes": ["application", "user"], "target_components": ["backend"]},
@@ -78,6 +78,20 @@ Use the returned `context_id` for subsequent deterministic browsing actions, inc
 ```json
 {"service_role":"compute","operation":"execute","arguments":{"filesystem_role":"workspace","command":"python --version","cwd":"/workspace","timeout_seconds":30}}
 ```
+
+The `execute` response's outer operation `id` is the stop target; its `result.context_id` is not. After explicit approval of both operations, submit a separate durable stop with a new persisted key:
+
+```json
+{"service_role":"compute","operation":"stop","arguments":{"target_operation_id":"00000000-0000-4000-8000-000000000301"}}
+```
+
+Poll the stop operation until it is `succeeded`. This is its inner `result` shape, not the operation envelope:
+
+```json
+{"target_operation_id":"00000000-0000-4000-8000-000000000301","context_id":"00000000-0000-4000-8000-000000000302","filesystem_role":"workspace","status":"stopped"}
+```
+
+Replace the fictional target with the original execute ID from this same component, actor, sandbox role and currently approved resource scope. User-mode execution needs that same user's verified delegation for stop. The original execute's terminal status, result/error and artifacts remain under its original ID; stopping nonterminal work marks it cancelled only after exact containment. A stale target cannot stop a replacement warm execute. Recover a retry with the identical stop body/key, and never change its target automatically; a changed body or grant revision conflicts. `stopped` attests the original runtime generation's containment, not retained-volume cleanup or a newer generation's state. See [target authority, stale targets and idempotence](application-services.md#browser-and-sandbox-lifecycle); this candidate's live stop acceptance is not established by these examples.
 
 ```json
 {"service_role":"reports","operation":"schema.read","arguments":{"resource_role":"reporting"}}

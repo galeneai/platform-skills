@@ -9,7 +9,7 @@ Use the contract files in [contracts/](contracts/) as the public authoring refer
 
 The packaged contracts include manifest 1.0 service/resource requirements, explicit installation approvals/bindings, `/v1/services` and ordinary job-consent, notification inbox/preferences, resource selection and credential rotation routes. Read [application services](application-services.md), [examples](application-services-examples.md) and [jobs/notifications](application-jobs-notifications.md) for authoring and authority boundaries. Snapshot coverage supports authoring and comparison; it does not establish tenant prerequisites, deployment readiness or completed external effects.
 
-The lock pins candidate Platform Core commit `449dacf3b4d643d38f8153f4c6abf7db6f88d7e5`, whose public Core version is `1.3.0`. This is the exact current-code candidate, not the final pin for the whole delivery. These versioned contract artifacts contain no platform implementation code.
+The lock pins candidate Platform Core commit `c16dfd48af2a6e95e02fe9183e8104fa59b6d7cc`, whose public Core version is `1.3.0`. This is the exact current-code candidate, not the final pin for the whole delivery. These versioned contract artifacts contain no platform implementation code.
 
 For the exact target's public OpenAPI URL, follow [API discovery](api-discovery.md), including Console, Control Plane and app runtime configuration. Keep its downloaded JSON separate from the pinned files below.
 

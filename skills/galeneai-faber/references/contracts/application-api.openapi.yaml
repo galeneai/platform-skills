@@ -5,7 +5,7 @@ info:
   description: Application publication, installation, tenant sign-in and direct application service contracts
     exported from the exact Platform Core commit recorded in snapshot-lock.json. Unrelated Core APIs are
     omitted.
-  x-platform-core-commit: 449dacf3b4d643d38f8153f4c6abf7db6f88d7e5
+  x-platform-core-commit: c16dfd48af2a6e95e02fe9183e8104fa59b6d7cc
 servers:
 - url: /
 paths:
@@ -14940,6 +14940,7 @@ components:
             - fetch
             - browsing
             - execute
+            - stop
             - schema.read
             - query.read
             - extract

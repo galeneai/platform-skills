@@ -4,17 +4,17 @@
   "source": {
     "repository": "galeneai/platform-core",
     "ref": "commit",
-    "commit": "449dacf3b4d643d38f8153f4c6abf7db6f88d7e5",
+    "commit": "c16dfd48af2a6e95e02fe9183e8104fa59b6d7cc",
     "captured_date": "2026-10-04"
   },
   "contracts": {
     "application_manifest_json_schema": {
       "path": "application-manifest.schema.json",
-      "sha256": "80fc04632997a59126f0bea859cf99d4a1f148cf127293fd4e3d63555ebb2997"
+      "sha256": "f13521dd3ab0e7417fd01cd87989737ecca680998ebda8a77113e89a08fa35ba"
     },
     "app_api_openapi": {
       "path": "application-api.openapi.yaml",
-      "sha256": "b670be9bc0539176c7e5ee1e89db96574fdab8e31b64f209a7177c639fa91724"
+      "sha256": "daebc06f6a649aca5a8b86e6602199488e78e719caf34fed59777e9453e286f5"
     }
   },
   "source_files_sha256": {
@@ -47,7 +47,7 @@
     "backend/core/application_services/relay.py": "fc4a296e67dd9d71a5b8c3dd1156d1388034b43a0cffaded8cde19b0e045aa3a",
     "backend/core/application_services/resources.py": "aa11b93dd37e61edd0d9532be1c0a4ff7cc4f0b76967c46140681274d58a6602",
     "backend/core/application_services/retrieval.py": "20117500fd3f274a02901b4d6bb7a39c6d8f246977d773a81083a98ecc3e261f",
-    "backend/core/application_services/sandbox.py": "8ae9da1847c18c8e786f4a12ff2d8453ff27301436ea54e31f2501242b5e1a89",
+    "backend/core/application_services/sandbox.py": "8c153b02e4548096f0736e9b42ce302b3b0a3673a90e86361fb42da289889390",
     "backend/core/application_services/web.py": "c94ba8b3f03d0e768727e66953d38fdac79b9444abca836cd7711d57ce0eaf22",
     "backend/core/application_services/web_browser.py": "3709879a7b4253ea4b1b581be40fb70b697a6676acc78960681c4ee94c48e0e1",
     "backend/core/authentication/sso_facade.py": "1cf21fd512e8c2e35c990d9a40bd7cf977be6cab8bf946025549e5e22fdddcee",
@@ -74,7 +74,7 @@
     "backend/models/auth/dto.py": "a49fb77e7ba15d8e1003bc9c7a7510bbe6c661787dbcf378a2dfe8e046b2884f",
     "backend/models/controlplane/application_archive_import/dto.py": "a1468e9a20ee56ca734b444e03526ba6f8f4d27b7d4fc15056f3d9ff2270440b",
     "backend/models/controlplane/application_package/dto.py": "56f127232f874c5014d4c6d01dc7c8221c8c99236cd9f89966968a22977f1bce",
-    "backend/models/controlplane/application_package_version/dto.py": "201ee0b48621ba7274dfb4a2c0a3adebfe5de3c898522825648f22820bb38161",
+    "backend/models/controlplane/application_package_version/dto.py": "7d6577bb861d65f2bfde63924879c51072ecde450bf3f6e5450d6619123b934c",
     "backend/models/controlplane/application_tenant_availability/dto.py": "ff29128db992bac124d3ca90639fad93e6b2fb70e53408e33300acadcad0843d",
     "backend/models/controlplane/enums.py": "7fcc26f8b591f86aa4fdbc7f679fb510a0ed83471ef3b461eaeb6dc5566feaa1",
     "backend/models/controlplane/registry_source/dto.py": "5771e8e256e81d03242affa74b902ab532b179f3773ea9837b0805e3958336a5",
