@@ -72,9 +72,9 @@ Revocation, suspension, uninstall, component targeting, tenant state, and grant 
 
 For a user-mode service call, keep the application bearer in `Authorization` and pass the actual signed-in tenant user's bearer in `X-Galene-User-Authorization: Bearer ...`. Core verifies that user and tenant and intersects resource authority with the user's current permissions. A user header selects user mode; that mode must be in the approved requirement. Never send a user UUID as authorization or substitute a service account.
 
-Delegation expires with the verified user token, including while work is queued. Handle `user_delegation_expired` by obtaining the user's supported fresh authentication and resubmitting only through the documented recovery/idempotency path. Personal MCP OAuth access requires that actual user's delegation; application mode cannot borrow personal tokens.
+Delegation expires with the verified user token, including while work is queued. Surface `user_delegation_expired` and obtain the user's supported fresh authentication before explicitly retrying failed work. Reusing a key recovers its persisted operation; it does not restart a terminal failure. Personal MCP OAuth access requires that actual user's delegation; application mode cannot borrow personal tokens.
 
-Scheduled work must use the explicit Core offline-consent contract for its precise approved target operation, resource scope, and lifetime. A live bearer, an app grant, or a browser checkbox alone does not establish enduring consent. The scheduling request/consent schema is still being finalized in the source baseline; do not guess its fields or retain a user's bearer for a future job. Fill this subsection from the committed jobs DTO/router before publishing the snapshot.
+User-mode scheduled work requires explicit offline consent for its exact immutable target operation, bound resources and lifetime. Create the schedule through `jobs.schedule` with verified user delegation, then have its creator review/approve it using ordinary tenant authentication at `GET /application-jobs/{job_id}` and `POST /application-jobs/{job_id}/approve`; consent expiry is between one minute and 30 days. Application-mode schedules use their approved application authority. Neither mode retains a user bearer for future work. Follow [jobs, consent and callbacks](application-jobs-notifications.md) for exact bodies, permissions, job states and signature verification.
 
 ## Durable operations
 
@@ -116,7 +116,7 @@ Use service arguments and results from the verified snapshot; [examples](applica
 - Filesystem operations use relative normalized paths under the bound resource. Writes and checkpoints require write access; raw write cannot overwrite a tracked document.
 - MCP invokes only the exact approved tool allowlist with matching current schemas. Connector secrets remain inside Core.
 - Jobs schedule only explicitly authorized work and consent; job lifecycle is separate from the submission operation lifecycle.
-- Notifications target approved recipient bindings and respect user preferences. They do not allow arbitrary email relay.
+- Notifications target approved recipient bindings and respect recipient-owned channel preferences. Read [notification inbox, receipt and SMTP prerequisites](application-jobs-notifications.md#send-to-approved-recipients): internal delivery is a real inbox record, while email uses the tenant SMTP broker. Authenticated SMTP configured before that broker requires securely saving its password again.
 
 ## Focused acceptance
 
