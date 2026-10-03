@@ -5,9 +5,6 @@
     "name": "Team Notes",
     "requires_core": ">=1.2,<2.0"
   },
-  "authentication": {
-    "login_path": "/login"
-  },
   "components": [
     {
       "name": "web",

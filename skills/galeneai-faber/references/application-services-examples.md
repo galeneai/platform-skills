@@ -1,6 +1,6 @@
 # Application service examples
 
-These fictional examples accompany the [source preview](application-services.md#contract-status). They are **not** covered by the current packaged contract lock. Do not run publication/install from them until the final Core snapshot and target prerequisites are verified. UUIDs and image digests are placeholders; no token values belong here.
+These fictional examples accompany the [pinned application-services contract](application-services.md#contract-status). The packaged manifest schema and focused OpenAPI cover these declarations and public endpoint envelopes; adapter arguments follow the guide at the same Core revision. Verify target compatibility and tenant prerequisites before publication/install. UUIDs and image digests are placeholders; no token values belong here.
 
 ## Manifest additions
 

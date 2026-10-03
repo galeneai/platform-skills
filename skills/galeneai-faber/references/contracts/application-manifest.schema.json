@@ -16,24 +16,6 @@
       "title": "ApplicationArchiveImportSpec",
       "type": "object"
     },
-    "ApplicationAuthenticationSpec": {
-      "additionalProperties": false,
-      "description": "Browser authentication entry points exposed by the application.",
-      "properties": {
-        "login_path": {
-          "default": "/login",
-          "description": "Exact absolute frontend path that can receive browser authentication returns. It cannot contain an authority, query, fragment, percent-encoding, dot segments or backslashes. Default `/login`.",
-          "examples": [
-            "/login",
-            "/auth/sign-in"
-          ],
-          "title": "Login Path",
-          "type": "string"
-        }
-      },
-      "title": "ApplicationAuthenticationSpec",
-      "type": "object"
-    },
     "ApplicationCapabilitySpec": {
       "additionalProperties": false,
       "properties": {
@@ -558,7 +540,7 @@
             }
           ],
           "default": null,
-          "description": "Informational Core version constraint, copied to the version's `requires_core`.",
+          "description": "PEP 440 Core version constraint, enforced at publication, install, update and runtime reconciliation.",
           "examples": [
             ">=1.2.0"
           ],
@@ -614,10 +596,11 @@
           "type": "string"
         },
         "slot": {
-          "description": "`llm` for a chat model or `embedding`.",
+          "description": "`llm` for chat, `embedding` for vectors, or `stt` for transcription.",
           "enum": [
             "llm",
-            "embedding"
+            "embedding",
+            "stt"
           ],
           "title": "Slot",
           "type": "string"
@@ -633,11 +616,12 @@
           "type": "string"
         },
         "capabilities": {
-          "description": "Model capabilities the role needs, unique; they must include the slot's capability (`chat` or `embedding`), which is also the default.",
+          "description": "Model capabilities the role needs, unique; they must include the slot's capability (`chat`, `embedding` or `transcription`), which is also the default.",
           "items": {
             "enum": [
               "chat",
-              "embedding"
+              "embedding",
+              "transcription"
             ],
             "type": "string"
           },
@@ -645,11 +629,12 @@
           "type": "array"
         },
         "input_modalities": {
-          "description": "Input modalities the model must accept, unique and including `text`. Default `[\"text\"]`.",
+          "description": "Input modalities the model must accept, unique; stt defaults to audio, other slots default to text.",
           "items": {
             "enum": [
               "text",
-              "image"
+              "image",
+              "audio"
             ],
             "type": "string"
           },
@@ -761,6 +746,51 @@
       "title": "ApplicationPersistentVolumeSpec",
       "type": "object"
     },
+    "ApplicationResourceRequirement": {
+      "additionalProperties": false,
+      "description": "Logical tenant resource requested by a package; no tenant identifiers or secrets.",
+      "properties": {
+        "role": {
+          "description": "Unique logical resource role.",
+          "pattern": "^[a-z][a-z0-9_-]{0,62}$",
+          "title": "Role",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind of tenant resource to bind.",
+          "enum": [
+            "filesystem",
+            "db_connector",
+            "mcp_connector",
+            "notification_recipient"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "access": {
+          "default": "read",
+          "description": "Maximum resource access requested.",
+          "enum": [
+            "read",
+            "read_write"
+          ],
+          "title": "Access",
+          "type": "string"
+        },
+        "required": {
+          "default": false,
+          "description": "Whether installation requires this resource binding.",
+          "title": "Required",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "role",
+        "kind"
+      ],
+      "title": "ApplicationResourceRequirement",
+      "type": "object"
+    },
     "ApplicationResourceSpec": {
       "additionalProperties": false,
       "description": "Resource sizing of a component.",
@@ -842,6 +872,116 @@
       "title": "ApplicationRouteSpec",
       "type": "object"
     },
+    "ApplicationServiceRequirement": {
+      "additionalProperties": false,
+      "description": "Service operations the installer must explicitly approve for backend/worker components.",
+      "properties": {
+        "role": {
+          "description": "Unique logical service role to approve.",
+          "pattern": "^[a-z][a-z0-9_-]{0,62}$",
+          "title": "Role",
+          "type": "string"
+        },
+        "service": {
+          "description": "Core service family.",
+          "enum": [
+            "web",
+            "sandbox",
+            "database_connectors",
+            "documents",
+            "retrieval",
+            "inference",
+            "filesystem",
+            "mcp",
+            "jobs",
+            "notifications"
+          ],
+          "title": "Service",
+          "type": "string"
+        },
+        "operations": {
+          "description": "Unique operations from the selected service catalog.",
+          "items": {
+            "enum": [
+              "search",
+              "fetch",
+              "browsing",
+              "execute",
+              "schema.read",
+              "query.read",
+              "extract",
+              "ocr",
+              "convert",
+              "index",
+              "chat",
+              "embedding",
+              "transcribe",
+              "read",
+              "write",
+              "checkpoint",
+              "catalog",
+              "invoke",
+              "schedule",
+              "send"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Operations",
+          "type": "array"
+        },
+        "resource_roles": {
+          "description": "Declared resource roles needed by this service.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Resource Roles",
+          "type": "array"
+        },
+        "mcp_tools": {
+          "description": "Explicit remote MCP tool names approved for invocation, without wildcards.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Mcp Tools",
+          "type": "array"
+        },
+        "execution_modes": {
+          "description": "Allowed execution modes; user mode additionally requires verified delegation.",
+          "items": {
+            "enum": [
+              "application",
+              "user"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Execution Modes",
+          "type": "array"
+        },
+        "required": {
+          "default": false,
+          "description": "Whether installation requires explicit approval.",
+          "title": "Required",
+          "type": "boolean"
+        },
+        "target_components": {
+          "description": "Backend/worker components; empty selects all eligible components.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Target Components",
+          "type": "array"
+        }
+      },
+      "required": [
+        "role",
+        "service",
+        "operations"
+      ],
+      "title": "ApplicationServiceRequirement",
+      "type": "object"
+    },
     "ApplicationSessionExecutionSpec": {
       "description": "Optional application participant in durable session execution.",
       "properties": {
@@ -895,16 +1035,13 @@
       "type": "object"
     }
   },
-  "description": "Public application manifest schema exported from Platform Core 454deb5c990a546092f23337ee06235af493e6d9. Server-side validation remains authoritative.",
+  "description": "Deployment contract of one application version.",
   "examples": [
     {
       "app": {
         "name": "Helpdesk",
         "requires_core": ">=1.2.0",
         "slug": "helpdesk"
-      },
-      "authentication": {
-        "login_path": "/login"
       },
       "capabilities": [
         {
@@ -1008,10 +1145,6 @@
       "title": "Routes",
       "type": "array"
     },
-    "authentication": {
-      "$ref": "#/$defs/ApplicationAuthenticationSpec",
-      "description": "Browser authentication entry points. Existing manifests default to a `/login` return path."
-    },
     "capabilities": {
       "description": "Platform capabilities the application asks for, unique by name.",
       "items": {
@@ -1060,6 +1193,22 @@
       "description": "AI model roles the application needs, unique by role.",
       "title": "Model Requirements"
     },
+    "service_requirements": {
+      "description": "Core service roles; installation never grants them automatically.",
+      "items": {
+        "$ref": "#/$defs/ApplicationServiceRequirement"
+      },
+      "title": "Service Requirements",
+      "type": "array"
+    },
+    "resource_requirements": {
+      "description": "Logical resource roles bound by the tenant installer.",
+      "items": {
+        "$ref": "#/$defs/ApplicationResourceRequirement"
+      },
+      "title": "Resource Requirements",
+      "type": "array"
+    },
     "vfs": {
       "$ref": "#/$defs/ApplicationVfsSpec",
       "description": "Virtual-filesystem defaults."
@@ -1091,6 +1240,6 @@
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.galene.ai/application-manifest/1.0/schema.json",
-  "x-platform-core-commit": "454deb5c990a546092f23337ee06235af493e6d9",
+  "x-platform-core-commit": "209ceabe4f0707f2b62b090d159d4e9fc4f2bbd0",
   "x-contract-snapshot": "snapshot-lock.json"
 }

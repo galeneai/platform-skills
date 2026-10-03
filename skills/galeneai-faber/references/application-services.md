@@ -2,7 +2,7 @@
 
 ## Contract status
 
-This guide is an authoring preview checked against Platform Core `c1b4460d0d03f8632177823eba0c6ae5fd07172f` on 2026-10-03, including its documented service resource and credential management routes. The packaged manifest/OpenAPI snapshots still pin Core `454deb5c990a546092f23337ee06235af493e6d9` and do **not** include this extension. Their hashes and compatibility record remain unchanged. Finalize this reference and refresh the snapshots from the exact committed Core revision before packaging or installing an app that uses services. A live target OpenAPI download cannot replace that maintenance step. See [contracts](contracts.md).
+The packaged manifest schema and focused OpenAPI pin Platform Core `209ceabe4f0707f2b62b090d159d4e9fc4f2bbd0`, including manifest 1.0 service/resource requirements, `/v1/services` and the eleven job-consent, inbox/preferences, resource and credential management routes. Compare the relevant public contract with the explicit target before packaging or installation; tenant configuration, approvals and runtime readiness remain separate prerequisites. A live target OpenAPI download cannot replace the versioned snapshot or its hashes. See [contracts](contracts.md).
 
 ## Declare intent in manifest 1.0
 
