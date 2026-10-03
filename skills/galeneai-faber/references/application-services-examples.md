@@ -53,7 +53,7 @@ This is a fragment of a deployment request, alongside its package/version and ot
 }
 ```
 
-Do not send `mcp_tools` hashes in bindings. Core derives trusted pins from the approved connector/tool schemas. Do not submit the fragment using the current `install.py`, which cannot carry these fields yet. Use the verified service approval UI/API once this extension is committed and snapshotted.
+Do not send `mcp_tools` hashes in bindings. Core derives trusted pins from the approved connector/tool schemas. Once the extension is committed and snapshotted, pass repeated `--approved-service` options for the selected roles and a `--service-bindings` file containing only the inner resource-role mapping shown above. See [tooling](tooling.md#explicit-service-selections-at-installation), or use the verified approval UI/API.
 
 ## Operation bodies
 

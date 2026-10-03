@@ -24,7 +24,7 @@ sys.path.insert(0, str(SCRIPTS))
 from _support import load_json, validate_manifest  # noqa: E402
 from doctor import doctor as run_doctor  # noqa: E402
 from http_client import NoRedirectHandler, open_no_redirect  # noqa: E402
-from install import install_deployment, request_json  # noqa: E402
+from install import _load_service_bindings, install_deployment, main as install_main, request_json  # noqa: E402
 
 
 def load_script(name: str):
@@ -303,6 +303,106 @@ class SkillToolingTests(unittest.TestCase):
                 api_request=fake_api,
             )
         self.assertFalse(any(method == "POST" for _, method, _ in calls))
+
+    def test_service_install_forwards_explicit_selections_in_both_auth_flows(self):
+        tenant_id = "11111111-1111-4111-8111-111111111111"
+        package_id = "22222222-2222-4222-8222-222222222222"
+        version_id = "33333333-3333-4333-8333-333333333333"
+        resource_id = "44444444-4444-4444-8444-444444444444"
+        manifest = {
+            "service_requirements": [{"role": "files", "required": True, "resource_roles": ["workspace"]},
+                                     {"role": "optional_search", "resource_roles": []}],
+            "resource_requirements": [{"role": "workspace", "kind": "filesystem", "access": "read_write", "required": True}],
+        }
+        bindings = {"workspace": {"resource_id": resource_id, "access": "read_write"}}
+        for auth_context in ("tenant", "publisher"):
+            with self.subTest(auth_context=auth_context):
+                calls = []
+
+                def fake_api(base, path, token, method, payload):
+                    calls.append((path, method, payload))
+                    if path == "/controlplane/tenants":
+                        return {"result": [{"id": tenant_id, "slug": "acme-test"}]}
+                    if path == "/controlplane/applications":
+                        return {"result": [{"id": package_id, "slug": "team-notes"}]}
+                    if path.endswith("/versions"):
+                        return {"result": [{"id": version_id, "version": "1.2.0"}]}
+                    if path == "/tenant/applications/available":
+                        return {"result": [{"package": {"id": package_id, "slug": "team-notes"},
+                                            "version": {"id": version_id, "version": "1.2.0"}}]}
+                    return {"result": {"id": "deployment-1", "status": "pending"}}
+
+                install_deployment(base_url="https://core.example", tenant="acme-test", project_tenant="acme-test",
+                    package_id=package_id, version_id=version_id, slug="team-notes", app_version="1.2.0",
+                    token="test-only-token", auth_context=auth_context, manifest=manifest,
+                    approved_services=["files"], service_bindings=bindings, api_request=fake_api)
+                expected_path = "/tenant/applications/deployments" if auth_context == "tenant" else f"/controlplane/tenants/{tenant_id}/application-deployments"
+                self.assertEqual(calls[-1], (expected_path, "POST", {
+                    "package_id": package_id, "version_id": version_id,
+                    "approved_services": ["files"], "service_bindings": bindings,
+                }))
+
+    def test_service_install_rejects_invalid_authority_before_any_http(self):
+        resource_id = "44444444-4444-4444-8444-444444444444"
+        manifest = {
+            "service_requirements": [{"role": "files", "required": True, "resource_roles": ["workspace"]}],
+            "resource_requirements": [{"role": "workspace", "kind": "filesystem", "access": "read"}],
+        }
+        binding = {"resource_id": resource_id, "access": "read"}
+        cases = [
+            (None, {"workspace": binding}),
+            (["foreign"], {"workspace": binding}),
+            (["Files"], {"workspace": binding}),
+            (["files", "files"], {"workspace": binding}),
+            (["files"], {}),
+            (["files"], {"foreign": binding}),
+            (["files"], {"workspace": {**binding, "resource_id": "not-a-uuid"}}),
+            (["files"], {"workspace": {**binding, "access": "admin"}}),
+            (["files"], {"workspace": {**binding, "access": "read_write"}}),
+            (["files"], {"workspace": {**binding, "mcp_tools": {"tool": "sha256:forged"}}}),
+            (["files"], {"workspace": {**binding, "tenant_id": resource_id}}),
+        ]
+        for approved, bindings in cases:
+            with self.subTest(approved=approved, bindings=bindings), patch("install.request_json") as api:
+                with self.assertRaises(ValueError):
+                    install_deployment(base_url="https://core.example", tenant="acme-test", project_tenant="acme-test",
+                        package_id="package-1", version_id="version-1", slug="team-notes", app_version="1.2.0",
+                        token="test-only-token", manifest=manifest, approved_services=approved,
+                        service_bindings=bindings, api_request=api)
+                api.assert_not_called()
+        with patch("install.request_json") as api, self.assertRaisesRegex(ValueError, "require the manifest"):
+            install_deployment(base_url="https://core.example", tenant="acme-test", project_tenant="acme-test",
+                package_id="package-1", version_id="version-1", slug="team-notes", app_version="1.2.0",
+                token="test-only-token", approved_services=["files"], api_request=api)
+        api.assert_not_called()
+
+    def test_service_binding_file_rejects_duplicate_keys(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "bindings.json"
+            path.write_text('{"workspace":{"resource_id":"first","resource_id":"second","access":"read"}}')
+            with self.assertRaisesRegex(ValueError, "duplicate keys"):
+                _load_service_bindings(path)
+
+    def test_install_cli_reads_repeated_service_roles_and_binding_file(self):
+        with tempfile.TemporaryDirectory() as temp:
+            project = Path(temp)
+            copyfile(EXAMPLES / "app-project.json", project / "galene-app-project.json")
+            manifest = load_json(EXAMPLES / "team-notes-manifest.json")
+            (project / "galene-app.json").write_text(json.dumps(manifest))
+            bindings = {"workspace": {"resource_id": "44444444-4444-4444-8444-444444444444", "access": "read"}}
+            path = project / "bindings.json"
+            path.write_text(json.dumps(bindings))
+            argv = ["install.py", "--project", str(project), "--base-url", "https://core.example",
+                    "--tenant", "acme-test", "--app-version", "1.2.0", "--package-id", "package-1",
+                    "--version-id", "version-1", "--approved-service", "files", "--approved-service", "search",
+                    "--service-bindings", str(path)]
+            with patch("sys.argv", argv), patch.dict("os.environ", {"GALENE_TENANT_TOKEN": "test-only-token"}), \
+                 patch("install.install_deployment", return_value={"id": "deployment-1"}) as install, \
+                 patch("sys.stdout", new_callable=io.StringIO):
+                self.assertEqual(install_main(), 0)
+            self.assertEqual(install.call_args.kwargs["approved_services"], ["files", "search"])
+            self.assertEqual(install.call_args.kwargs["service_bindings"], bindings)
+            self.assertEqual(install.call_args.kwargs["manifest"], manifest)
 
     def test_server_manifest_validation_uses_public_request_and_error_shape(self):
         body = json.dumps({

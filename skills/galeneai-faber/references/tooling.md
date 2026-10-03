@@ -23,6 +23,29 @@ For tenant-scoped install, use --auth-context tenant and a tenant-scoped token i
 
 Read the bearer token from the approved local secret manager or protected environment as GALENE_CONTROLPLANE_TOKEN or GALENE_TENANT_TOKEN for the chosen context. Do not pass it as a command-line value or copy a token example. The install tool reads only that bearer token, never logs it, and does not accept registry or other secret values.
 
+## Explicit service selections at installation
+
+After the [application-services snapshot gate](application-services.md#contract-status) is met, install with repeated `--approved-service ROLE` selections and optional `--service-bindings JSON_FILE`. Both tenant and publisher flows accept these fields; the selected tenant must still match project context and the remote catalog. No role is auto-approved from `required`.
+
+```sh
+python3 scripts/install.py --auth-context publisher --base-url https://core.example \
+  --tenant acme-test --app-version 1.2.0 --package-id "$PACKAGE_UUID" --version-id "$VERSION_UUID" \
+  --approved-service files --approved-service cases --service-bindings ./service-bindings.json
+```
+
+`service-bindings.json` is a mapping of declared resource roles to **exactly** `{resource_id, access}`:
+
+```json
+{
+  "workspace": {"resource_id": "00000000-0000-4000-8000-000000000101", "access": "read_write"},
+  "case_tools": {"resource_id": "00000000-0000-4000-8000-000000000103", "access": "read"}
+}
+```
+
+Choose real UUIDs from the authorized target tenant's service-resource catalog. The tool validates manifest role names, unique explicit approvals, UUID/access values, the declared access ceiling, required approvals/resources and bindings for every approved service dependency before HTTP. Only filesystem supports `read_write`. Extra binding fields (including MCP schema hashes or authority), unknown roles and duplicate JSON keys are rejected. Omitted options omit the request fields; supplied selections are sent exactly after validation. Core remains responsible for current tenant ACLs, resource kinds/state and trusted MCP pins. These files contain selections only, never credentials.
+
+`install_deployment` retains its existing optional arguments and adds optional `manifest`, `approved_services`, and `service_bindings`. Pass the authoring manifest whenever selecting services; the helper rejects service selections without it. Legacy calls with none of these arguments retain their request shape. CLI reads the manifest from `galene-app.json`. The new transport does not bypass the pending contract snapshot or grant installer permission.
+
 Offline validation may use --release to require immutable image digests. Direct external-version release validation should use `--server-url` with `--version`; this calls the validator in the pinned Core snapshot and requires a control-plane token. If the target API returns 404 or its public schema differs from the pinned snapshot, stop the affected operation and give the platform operator a minimal sanitized diagnosis. Use a supported published contract/version; app builders do not refresh the snapshot from an unverified checkout. For integrated archive releases use `--flow archive-import --release`; the archive-import API validates registry source and inspected images, so do not send that manifest to the direct-version validator.
 
 The package script creates a deterministic release bundle containing the canonical manifest, compatibility record, release metadata, and optional release notes. Its compatibility record must match the exact Core commit and schema/OpenAPI hashes in this skill's `snapshot-lock.json`; arbitrary snapshot IDs are rejected. App builders must not change those pins as a workaround for target drift; see [contracts](contracts.md) for maintainer-only snapshot refresh. Integrated manifests may contain multiple `archive_import` components, which must share one internal registry source. App images are separate OCI artifacts; the bundle does not copy source files, images, or archives and does not contain the local tenant/registry project context. Replace `MANAGED_DOMAIN_UUID` in the example with the domain ID the user selected from that tenant's domain-options response.

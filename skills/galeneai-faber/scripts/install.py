@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -239,6 +240,99 @@ def _publisher_domain_bindings(
     ]
 
 
+_SERVICE_ROLE = re.compile(r"^[a-z][a-z0-9_-]{0,62}$")
+
+
+def _declared_roles(manifest: dict[str, Any], field: str) -> dict[str, dict[str, Any]]:
+    entries = manifest.get(field, [])
+    if not isinstance(entries, list):
+        raise ValueError(f"manifest {field} must be a list")
+    roles = {}
+    for entry in entries:
+        if not isinstance(entry, dict) or not isinstance(entry.get("role"), str) or not _SERVICE_ROLE.fullmatch(entry["role"]):
+            raise ValueError(f"manifest {field} contains an invalid role")
+        if entry["role"] in roles:
+            raise ValueError(f"manifest {field} contains duplicate roles")
+        roles[entry["role"]] = entry
+    return roles
+
+
+def _service_selections(manifest, approved_services, service_bindings) -> dict[str, Any]:
+    if manifest is None:
+        if approved_services is not None or service_bindings is not None:
+            raise ValueError("service selections require the manifest")
+        return {}
+    if not isinstance(manifest, dict):
+        raise ValueError("manifest must be an object")
+    services = _declared_roles(manifest, "service_requirements")
+    resources = _declared_roles(manifest, "resource_requirements")
+    if approved_services is not None and not isinstance(approved_services, list):
+        raise ValueError("approved_services must be a list")
+    approved = approved_services if approved_services is not None else []
+    seen = set()
+    for role in approved:
+        if not isinstance(role, str) or not _SERVICE_ROLE.fullmatch(role) or role not in services:
+            raise ValueError("approved service must name a declared manifest role")
+        if role in seen:
+            raise ValueError("approved service selections must be unique")
+        seen.add(role)
+    if any(spec.get("required", False) and role not in seen for role, spec in services.items()):
+        raise ValueError("explicitly approve every required service; no services are granted automatically")
+    if service_bindings is not None and not isinstance(service_bindings, dict):
+        raise ValueError("service_bindings must be an object keyed by manifest resource role")
+    bindings = {}
+    for role, binding in (service_bindings or {}).items():
+        if not isinstance(role, str) or not _SERVICE_ROLE.fullmatch(role) or role not in resources:
+            raise ValueError("binding must name a declared manifest resource role")
+        if not isinstance(binding, dict) or set(binding) != {"resource_id", "access"}:
+            raise ValueError("each binding must contain only resource_id and access")
+        if not isinstance(binding["resource_id"], str):
+            raise ValueError("binding resource_id must be a UUID string")
+        try:
+            resource_id = str(uuid.UUID(binding["resource_id"]))
+        except ValueError:
+            raise ValueError("binding resource_id must be a UUID string") from None
+        access = binding["access"]
+        spec = resources[role]
+        if not isinstance(access, str) or access not in {"read", "read_write"}:
+            raise ValueError("binding access must be read or read_write")
+        if access == "read_write" and (spec.get("kind") != "filesystem" or spec.get("access", "read") != "read_write"):
+            raise ValueError("binding write access exceeds the declared resource access")
+        bindings[role] = {"resource_id": resource_id, "access": access}
+    required_resources = {role for role, spec in resources.items() if spec.get("required", False)}
+    for role in approved:
+        dependencies = services[role].get("resource_roles", [])
+        if not isinstance(dependencies, list) or any(not isinstance(item, str) or item not in resources for item in dependencies):
+            raise ValueError("approved service references invalid resource roles")
+        required_resources.update(dependencies)
+    if not required_resources.issubset(bindings):
+        raise ValueError("bind every required resource and every approved service resource role")
+    selections = {}
+    if approved_services is not None:
+        selections["approved_services"] = list(approved)
+    if service_bindings is not None:
+        selections["service_bindings"] = bindings
+    return selections
+
+
+def _load_service_bindings(path: Path) -> dict[str, Any]:
+    def unique_keys(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("service bindings JSON contains duplicate keys")
+            result[key] = value
+        return result
+
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_keys)
+    except json.JSONDecodeError:
+        raise ValueError("service bindings file must contain valid JSON") from None
+    if not isinstance(value, dict):
+        raise ValueError("service bindings file must contain a resource-role mapping")
+    return value
+
+
 def install_deployment(
     *,
     base_url: str,
@@ -253,6 +347,9 @@ def install_deployment(
     deployment_name: str | None = None,
     routes: list[dict[str, Any]] | None = None,
     domain_bindings: dict[tuple[str, str], str] | None = None,
+    manifest: dict[str, Any] | None = None,
+    approved_services: list[str] | None = None,
+    service_bindings: dict[str, dict[str, str]] | None = None,
     api_request: RequestJson = request_json,
 ) -> Any:
     if tenant != project_tenant:
@@ -265,6 +362,7 @@ def install_deployment(
     payload: dict[str, Any] = {"package_id": package_id, "version_id": version_id}
     if deployment_name:
         payload["deployment_name"] = deployment_name
+    payload.update(_service_selections(manifest, approved_services, service_bindings))
 
     if auth_context == "tenant":
         required_routes = _required_domain_routes(routes)
@@ -350,6 +448,14 @@ def main() -> int:
     parser.add_argument("--version-id", required=True)
     parser.add_argument("--deployment-name")
     parser.add_argument(
+        "--approved-service", action="append", metavar="ROLE",
+        help="explicitly approve a manifest service role; repeat for each selection (no automatic grants)",
+    )
+    parser.add_argument(
+        "--service-bindings", type=Path, metavar="JSON_FILE",
+        help="JSON mapping of manifest resource roles to {resource_id: UUID, access: read|read_write}",
+    )
+    parser.add_argument(
         "--domain-binding",
         action="append",
         default=[],
@@ -382,6 +488,9 @@ def main() -> int:
             deployment_name=args.deployment_name,
             routes=manifest.get("routes", []),
             domain_bindings=_parse_domain_bindings(args.domain_binding),
+            manifest=manifest,
+            approved_services=args.approved_service,
+            service_bindings=_load_service_bindings(args.service_bindings) if args.service_bindings else None,
         )
     except (KeyError, ValueError, RuntimeError, OSError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)

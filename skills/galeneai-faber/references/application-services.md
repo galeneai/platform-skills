@@ -41,7 +41,7 @@ Keep app-owned `database_resources` and app `filesystem_resources` separate from
 
 ## Installation and approval
 
-Use the Console/Control Plane service approval UI or the verified deployment API. Existing `install.py` does not yet accept service approval/binding arguments; do not describe it as installing a service-dependent app until its contract and tooling are updated.
+Use the Console/Control Plane service approval UI or the verified deployment API. `install.py` accepts explicit repeated `--approved-service ROLE` selections and a `--service-bindings JSON_FILE` mapping after the committed-snapshot gate is met. Read [tooling](tooling.md#explicit-service-selections-at-installation) for local validation and tenant/publisher behavior; the tool never infers approval from required declarations.
 
 Authorized operators choose resources from:
 
