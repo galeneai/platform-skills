@@ -41,6 +41,7 @@ Bake `LOG_FORMAT=json` and `LOG_TARGET` into each image so a release logs correc
 - Put context in fields, not in the message text: `request_id`, `tenant_id`, `session_id`, `job_id`, `trace_id`, `correlation_id`, `status`, `duration_ms`. Use the authenticated tenant context for `tenant_id`, never a value from app input. Never log user names or e-mail addresses; use the user id.
 - Give each incoming request a `request_id` and add it to every line for that request. When the BFF calls Core, send a UUID `X-Galene-Correlation-Id`; Core returns `X-Galene-Correlation-Id` on its responses and uses it in its audit ledger. Inference endpoints also accept a UUID `X-Galene-Trace-Id` and return the trace id they used. Log both returned values as `correlation_id` and `trace_id` so an operator can follow one user action from the app into Core. Include them, not the response body, in a sanitized diagnosis.
 - Use levels consistently: `INFO` for lifecycle events and completed user actions, `WARN` for recoverable problems, `ERROR` for failures needing attention, and `DEBUG` for detail that is off by default. Log health-probe requests at `DEBUG` or skip them.
+- Expected failures record their type, safe status/code, affected ids and impact. Handle unexpected failures once at the boundary that owns recovery. Library exception messages and stacks can contain payloads; the examples below deliberately omit them and retain the logger's source location. An app may add sanitized frames from known packaged source files, without source lines, locals or remote messages. Never render raw exceptions just because a formatter accepts them.
 
 ## Python
 
@@ -67,7 +68,9 @@ class GaleneJsonFormatter(logging.Formatter):
             if key not in _RECORD_KEYS and not key.startswith("_"):
                 entry.setdefault(key, value)
         if record.exc_info:
-            entry["exception"] = self.formatException(record.exc_info)
+            # HTTP/database/validation errors commonly echo customer input.
+            # record.filename/lineno already identify the handling boundary.
+            entry["error_type"] = type(record.exc_info[1]).__name__
         return json.dumps(entry, default=str, ensure_ascii=False, separators=(",", ":"))
 
 def configure_logging():
@@ -98,12 +101,12 @@ export const logger = pino({
   errorKey: "exception",
   timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
   formatters: { level: (label) => ({ level: label.toUpperCase() }) },
-  serializers: { exception: (err) => err?.stack ?? String(err) },
+  serializers: { exception: (err) => ({ error_type: err instanceof Error ? err.constructor.name : "UnhandledError" }) },
   redact: ["req.headers.authorization", "req.headers.cookie", 'res.headers["set-cookie"]'],
 });
 ```
 
-Log with `logger.info({ request_id, duration_ms }, "note_saved")` and errors with `logger.error(err, "export_failed")`, which writes the stack as `exception`. For request logging (`pino-http`), pass this logger. Use `pino-pretty` only locally with `LOG_FORMAT=text`, never as a transport in the image.
+Log with `logger.info({ request_id, duration_ms }, "note_saved")` and handled errors with `logger.error({ exception: err, request_id, impact: "failed" }, "export_failed")`. The serializer records the type without the library message or stack. For request logging (`pino-http`), also configure a request serializer that emits method, matched route template and status only; pino's default request serializer includes the raw URL and client address. Use `pino-pretty` only locally with `LOG_FORMAT=text`, never as a transport in the image.
 
 ## Node console preload
 
@@ -125,9 +128,9 @@ for (const [method, level] of Object.entries(levels)) {
   console[method] = (...args) => {
     if (rank[level] < min) return;
     const errors = args.filter((arg) => arg instanceof Error);
-    const message = format(...args.map((arg) => (arg instanceof Error ? `${arg.name}: ${arg.message}` : arg))).replace(ansi, "");
+    const message = format(...args.map((arg) => (arg instanceof Error ? arg.constructor.name : arg))).replace(ansi, "");
     const entry = { timestamp: new Date().toISOString(), level, target, message };
-    if (errors.length) entry.exception = errors.map((error) => error.stack ?? String(error)).join("\n");
+    if (errors.length) entry.error_types = errors.map((error) => error.constructor.name);
     const line = text ? `${entry.timestamp} [${level}] ${target} - ${message}${entry.exception ? `\n${entry.exception}` : ""}` : JSON.stringify(entry);
     stream.write(`${line}\n`);
   };
