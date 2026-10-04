@@ -97,6 +97,7 @@ def verify_service_target(
     """Fail closed for new requirements; Core still validates the full requires_core range."""
     if not manifest or not (
         manifest.get("service_requirements") or manifest.get("resource_requirements")
+        or manifest.get("internal_endpoints")
     ):
         return
     requester = api_request or request_json
@@ -131,6 +132,22 @@ def verify_service_target(
     paths = document.get("paths")
     if not isinstance(paths, dict):
         raise RuntimeError("target OpenAPI is missing application-service routes")
+    if manifest.get("internal_endpoints"):
+        endpoints = _target_schema(document, manifest_fields.get("internal_endpoints"))
+        if endpoints.get("type") != "array":
+            raise RuntimeError("target OpenAPI is missing installed application endpoints")
+        endpoint = _target_schema(document, endpoints.get("items"))
+        fields = _target_properties(document, endpoint)
+        if set(fields) != {"name", "kind", "component", "path"} or endpoint.get("additionalProperties") is not False:
+            raise RuntimeError("target OpenAPI has an unsupported installed endpoint contract")
+        if any(_target_schema(document, field).get("type") != "string" for field in fields.values()):
+            raise RuntimeError("target OpenAPI has an unsupported installed endpoint contract")
+        if set(_target_schema(document, fields["kind"]).get("enum", [])) != {"mcp", "callback"}:
+            raise RuntimeError("target OpenAPI has an unsupported installed endpoint kind")
+        if any(item.get("kind") == "mcp" for item in manifest["internal_endpoints"] if isinstance(item, dict)):
+            introspection = paths.get("/v1/services/mcp/introspect")
+            if not isinstance(introspection, dict) or not isinstance(introspection.get("post"), dict):
+                raise RuntimeError("target OpenAPI is missing installed MCP authority introspection")
     for path, methods in (
         ("/v1/services/token", ("post",)),
         ("/v1/services/grants", ("get",)),

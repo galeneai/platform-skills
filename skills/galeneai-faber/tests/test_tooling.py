@@ -51,6 +51,11 @@ def service_target_contract(version="1.3.0"):
         "ApplicationManifest": {"properties": {
             "service_requirements": {"type": "array", "items": {"$ref": "#/components/schemas/ApplicationServiceRequirement"}},
             "resource_requirements": {"type": "array", "items": {"$ref": "#/components/schemas/ApplicationResourceRequirement"}},
+            "internal_endpoints": {"type": "array", "items": {"$ref": "#/components/schemas/ApplicationInternalEndpointSpec"}},
+        }},
+        "ApplicationInternalEndpointSpec": {"additionalProperties": False, "properties": {
+            "name": {"type": "string"}, "kind": {"type": "string", "enum": ["mcp", "callback"]},
+            "component": {"type": "string"}, "path": {"type": "string"},
         }},
         "ApplicationServiceRequirement": {"properties": {
             "role": {"type": "string"}, "service": {"type": "string"},
@@ -77,6 +82,7 @@ def service_target_contract(version="1.3.0"):
         "openapi": "3.1.0", "info": {"version": version}, "components": {"schemas": schemas},
         "paths": {
             "/v1/services/token": {"post": {}},
+            "/v1/services/mcp/introspect": {"post": {}},
             "/v1/services/grants": {"get": {}},
             "/v1/services/operations": {"post": {}, "get": {}},
             "/v1/services/operations/{operation_id}": {"get": {}},
@@ -451,6 +457,40 @@ class SkillToolingTests(unittest.TestCase):
             verify_service_target("https://core.example", {"service_requirements": [], "resource_requirements": []})
             verify_service_target("https://core.example", None)
         api.assert_not_called()
+
+    def test_provider_only_manifest_verifies_endpoint_and_introspection_before_installation(self):
+        manifest = {"internal_endpoints": [{"name": "echo", "kind": "mcp", "component": "api", "path": "/mcp/"}]}
+        for missing in (None, "internal_endpoints", "introspection", "endpoint_kind", "endpoint_extra"):
+            with self.subTest(missing=missing):
+                target = service_target_contract()
+                schemas = target["components"]["schemas"]
+                if missing == "internal_endpoints":
+                    del schemas["ApplicationManifest"]["properties"]["internal_endpoints"]
+                elif missing == "introspection":
+                    del target["paths"]["/v1/services/mcp/introspect"]
+                elif missing == "endpoint_kind":
+                    schemas["ApplicationInternalEndpointSpec"]["properties"]["kind"]["enum"] = ["mcp", "callback", "arbitrary"]
+                elif missing == "endpoint_extra":
+                    schemas["ApplicationInternalEndpointSpec"]["additionalProperties"] = True
+                with patch("install.request_json", return_value=target) as api:
+                    if missing is None:
+                        verify_service_target("https://core.example", manifest)
+                    else:
+                        with self.assertRaises(RuntimeError):
+                            verify_service_target("https://core.example", manifest)
+                api.assert_called_once_with("https://core.example", "/openapi.json", "", "GET", None)
+
+    def test_internal_endpoint_component_and_unique_name_semantics(self):
+        manifest = load_json(EXAMPLES / "team-notes-manifest.json")
+        manifest["internal_endpoints"] = [
+            {"name": "echo", "kind": "mcp", "component": "api", "path": "/mcp/"},
+            {"name": "echo", "kind": "callback", "component": "web", "path": "/events"},
+            {"name": "missing", "kind": "mcp", "component": "absent", "path": "/mcp/"},
+        ]
+        errors = validate_manifest(manifest)
+        self.assertIn("internal_endpoints[1].name: names must be unique", errors)
+        self.assertIn("internal_endpoints[1].component: a backend with a port is required", errors)
+        self.assertIn("internal_endpoints[2].component: unknown component", errors)
 
     def test_public_target_request_does_not_send_authorization(self):
         with patch("install.open_no_redirect") as opener:

@@ -151,6 +151,27 @@ def validate_manifest(
         if isinstance(component, str) and component not in component_names:
             errors.append(f"routes[{index}].component: unknown component")
 
+    endpoints = value.get("internal_endpoints", [])
+    if isinstance(endpoints, list):
+        endpoint_names: set[str] = set()
+        component_by_name = {
+            item.get("name"): item for item in components
+            if isinstance(item, dict) and isinstance(item.get("name"), str)
+        }
+        for index, endpoint in enumerate(endpoints):
+            if not isinstance(endpoint, dict):
+                continue
+            name = endpoint.get("name")
+            if isinstance(name, str):
+                if name in endpoint_names:
+                    errors.append(f"internal_endpoints[{index}].name: names must be unique")
+                endpoint_names.add(name)
+            target = component_by_name.get(endpoint.get("component")) if isinstance(endpoint.get("component"), str) else None
+            if target is None:
+                errors.append(f"internal_endpoints[{index}].component: unknown component")
+            elif target.get("kind") != "backend" or not target.get("port"):
+                errors.append(f"internal_endpoints[{index}].component: a backend with a port is required")
+
     capabilities = value.get("capabilities", [])
     if not isinstance(capabilities, list):
         capabilities = []
