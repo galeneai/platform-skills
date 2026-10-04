@@ -99,6 +99,19 @@ class SkillToolingTests(unittest.TestCase):
         manifest = load_json(EXAMPLES / "team-notes-manifest.json")
         self.assertEqual(validate_manifest(manifest), [])
 
+    def test_installed_mcp_and_callback_provider_use_the_pinned_manifest_contract(self):
+        manifest = load_json(EXAMPLES / "team-notes-manifest.json")
+        manifest["internal_endpoints"] = [
+            {"name": "actions", "kind": "mcp", "component": "api", "path": "/mcp/"},
+            {"name": "events", "kind": "callback", "component": "api", "path": "/events/"},
+        ]
+        self.assertEqual(validate_manifest(manifest), [])
+        manifest["internal_endpoints"][0]["url"] = "https://private.example.invalid"
+        self.assertTrue(any("url" in error for error in validate_manifest(manifest)))
+        del manifest["internal_endpoints"][0]["url"]
+        manifest["internal_endpoints"][0]["kind"] = "http"
+        self.assertTrue(any("kind" in error for error in validate_manifest(manifest)))
+
     def test_new_version_rejects_legacy_capability_and_outbound_hosts(self):
         manifest = load_json(EXAMPLES / "team-notes-manifest.json")
         manifest["capabilities"].append({"name": "direct_tenant_db"})
