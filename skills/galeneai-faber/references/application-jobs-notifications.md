@@ -1,6 +1,6 @@
 # Application jobs, callbacks and notifications
 
-Read [application services](application-services.md) first. This guide follows the packaged Platform Core `663b69cc602264a00090a60b8bb6b52c4f99efb9` contract and uses probe app `00a2176d09adc191b23ad00c59c5f965a7de98e3` for concrete usage. Verify the [target contract and prerequisites](application-services.md#contract-status) before publishing or installing a service-dependent app; app builders use the public contract without requiring Core source access. Examples are not evidence of runtime delivery.
+Read [application services](application-services.md) first. This guide follows the packaged Platform Core `ea864468d8f4ef1da3543dc37b960d2a4349de09` contract and uses probe app `00a2176d09adc191b23ad00c59c5f965a7de98e3` for concrete usage. Verify the [target contract and prerequisites](application-services.md#contract-status) before publishing or installing a service-dependent app; app builders use the public contract without requiring Core source access. Examples are not evidence of runtime delivery.
 
 The eleven ordinary management routes are documented in that Core revision: three job-consent routes and four inbox/preferences routes below, plus the two resource catalogs and two credential-rotation routes in [installation and credentials](application-services.md#installation-and-approval). They use their stated tenant or Control Plane authentication; `/v1/services` application credentials do not replace it. All eleven are included in the packaged focused OpenAPI.
 

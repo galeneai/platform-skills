@@ -4,17 +4,17 @@
   "source": {
     "repository": "galeneai/platform-core",
     "ref": "commit",
-    "commit": "663b69cc602264a00090a60b8bb6b52c4f99efb9",
+    "commit": "ea864468d8f4ef1da3543dc37b960d2a4349de09",
     "captured_date": "2026-10-04"
   },
   "contracts": {
     "application_manifest_json_schema": {
       "path": "application-manifest.schema.json",
-      "sha256": "be7c8a8c9c90fccfbf26d56efb0bd26a32866a826241df657ba69e67e20f4f9a"
+      "sha256": "3e784997971a8984f81ff441fb9d26ceb1d7d16a428d67b17bdf0d4eefb08466"
     },
     "app_api_openapi": {
       "path": "application-api.openapi.yaml",
-      "sha256": "7ce5bf74a2ab496b33d65da40c720e28795a2d3cc3917b7170be8592b71c3726"
+      "sha256": "848078cb4976fc32d214853c53cd868c76485912abe9e13779e41e6067c7965e"
     }
   },
   "source_files_sha256": {
@@ -131,7 +131,7 @@
     "backend/routers/vector_stores.py": "4ceb23668a2befc645e465acd0eca032d35334fb17bf7b3a784b285ddf63dc80"
   },
   "source_exports_sha256": {
-    "core-openapi-663b69cc6.json": "3c2cd4aa3d5beaeed994852dd14a4e242c13764aeff5ccfb5987ac9d973255ea",
-    "manifest-schema-663b69cc6.json": "c5fd341968e558a5ad023d544408815c942e1d7f9c0715bccb515585d893100e"
+    "core-openapi-ea864468d.json": "3c2cd4aa3d5beaeed994852dd14a4e242c13764aeff5ccfb5987ac9d973255ea",
+    "manifest-schema-ea864468d.json": "c5fd341968e558a5ad023d544408815c942e1d7f9c0715bccb515585d893100e"
   }
 }
