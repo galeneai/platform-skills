@@ -5,7 +5,7 @@ info:
   description: Application publication, installation, tenant sign-in, direct application services, installed
     MCP destinations and explicit owner delegation contracts exported from the exact Platform Core commit
     recorded in snapshot-lock.json. Unrelated Core APIs are omitted.
-  x-platform-core-commit: b436c037d5e2f124c8238beafcc018458b4a8ac6
+  x-platform-core-commit: 663b69cc602264a00090a60b8bb6b52c4f99efb9
 servers:
 - url: /
 paths:
@@ -14043,7 +14043,7 @@ paths:
       security:
       - TenantBearer: []
       - TenantApiKey: []
-      x-galene-audience: tenant-admin
+      x-galene-audience: tenant-public
       x-galene-permissions:
       - agent_owner_delegation.get
       x-galene-roles: []
@@ -14201,7 +14201,7 @@ paths:
       security:
       - TenantBearer: []
       - TenantApiKey: []
-      x-galene-audience: tenant-admin
+      x-galene-audience: tenant-public
       x-galene-permissions:
       - agent_owner_delegation.approve
       x-galene-roles: []
@@ -14353,7 +14353,7 @@ paths:
       security:
       - TenantBearer: []
       - TenantApiKey: []
-      x-galene-audience: tenant-admin
+      x-galene-audience: tenant-public
       x-galene-permissions:
       - agent_owner_delegation.approve
       x-galene-roles: []
@@ -14512,7 +14512,7 @@ paths:
       security:
       - TenantBearer: []
       - TenantApiKey: []
-      x-galene-audience: tenant-admin
+      x-galene-audience: tenant-public
       x-galene-permissions:
       - agent_owner_delegation.revoke
       x-galene-roles: []

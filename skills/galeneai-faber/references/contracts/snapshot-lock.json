@@ -1,20 +1,20 @@
 {
   "snapshot_version": 1,
-  "skill_version": "0.7.4",
+  "skill_version": "0.7.5",
   "source": {
     "repository": "galeneai/platform-core",
     "ref": "commit",
-    "commit": "b436c037d5e2f124c8238beafcc018458b4a8ac6",
+    "commit": "663b69cc602264a00090a60b8bb6b52c4f99efb9",
     "captured_date": "2026-10-04"
   },
   "contracts": {
     "application_manifest_json_schema": {
       "path": "application-manifest.schema.json",
-      "sha256": "683a2cc4337bfffbbfddb81106aeafa5769d5aecae8f6277ff913d8bb8a8f98c"
+      "sha256": "be7c8a8c9c90fccfbf26d56efb0bd26a32866a826241df657ba69e67e20f4f9a"
     },
     "app_api_openapi": {
       "path": "application-api.openapi.yaml",
-      "sha256": "42a1cbc6b05edf46187836c4a398737dce4575a9c5a9c199040de9a9209eea47"
+      "sha256": "7ce5bf74a2ab496b33d65da40c720e28795a2d3cc3917b7170be8592b71c3726"
     }
   },
   "source_files_sha256": {
@@ -65,7 +65,7 @@
     "backend/core/mcp/owner_delegation.py": "dfbcbc344ea7bc48f9e103b3dea99988e4289d0cb3265740e8cf99dd19103df8",
     "backend/core/mcp/resource_access.py": "3eb6e76b1da2e3677692aed79180d46d96ea4833ef0a8eb0446b4c3c55a95801",
     "backend/core/mcp/service.py": "078f33292709d2760fc5782b1e9d9073c68f8063709e6c6499c7fbfcd9520080",
-    "backend/core/openapi_docs.py": "2e44c44ffdc628878831d7d35b4d29f55a496d22bec0b64281644e2a8fcba74e",
+    "backend/core/openapi_docs.py": "0a3c320f8a3ae7b877e08a28cf0561ca7d754df5e89a57bc9037ab0ff6fbf3c0",
     "backend/core/permissions.py": "f98dd5cd12afbc92b67e0ecfc3ebad7813967e83df0f7e8fb96fa703d0e20ec9",
     "backend/core/platform_version.py": "a07a50e44ae9c2a37b3c064e4bd37ef6fa959faf13d6e7f95610e82df3b94bc6",
     "backend/core/storage/sandbox_policy.py": "763d2d3c4cb0e85829e06867cf2af173a51469a1b1f657dfe5644334340beb09",
@@ -80,13 +80,14 @@
     "backend/jobs/workflows/application_service/workflows.py": "dc25259a01ce4cc2dd4559c97a9ecde2aaa941abd9fc9d014dc9b5cffceab2b3",
     "backend/main.py": "c447ad3ce8117428e48d3530547561b7b0265cecf4b7d007b4cfbb275ef77cb0",
     "backend/migrations/tenant/versions/0146_agent_owner_delegations.py": "d02a8eabe625586ad50ce7894d7189889537c5a098bea933549cd431f039b4dd",
+    "backend/migrations/tenant/versions/0147_application_service_fk_indexes.py": "c85dd57475cab6cc42a797fef4ee33663eb6d42c482868a84997e4237d967d0e",
     "backend/models/agents/agent_owner_delegation/dto.py": "5b3922a3e124ae9a5e7ff21dcaaef0882135b8468530e75cbdb86c9730c8621a",
-    "backend/models/agents/agent_owner_delegation/entity.py": "3c4e8e4e868a0fc855a0a73164b21e5cfafe0c256c00c7c43734b90b3f01063f",
+    "backend/models/agents/agent_owner_delegation/entity.py": "7ceb6debead984e027e22a4db530d7c8dbec9a931959b7814fdec527fb9183de",
     "backend/models/application_browser_context.py": "9b750dfc9a8487c971a6c976f6e3a42efc3890552e8bf71f082c80376cbffde8",
-    "backend/models/application_service_job.py": "01106e59cf5a8c88d8ee5e09ef06f409473fedb561938e2cc3011a8f050c4238",
+    "backend/models/application_service_job.py": "f6f583857ee108e2b892d6d2ef047952f8b84569ad1e3b0eb5d77e7c661ebdf1",
     "backend/models/application_service_job_dto.py": "ca3fcc955411b03455d4fd792ee184cdda0d8503d08a88dbc3da119f811c7fb2",
     "backend/models/application_service_operation.py": "50a91b5ba8586fbd810caaae64f6e3fb4536d9f1d764c4f9f352e629cfaf6a09",
-    "backend/models/application_service_runtime.py": "4f7d8f3666d7dbbdeb2ee0f39cc693159cf663af23dfff4ac10da5126a3353bb",
+    "backend/models/application_service_runtime.py": "0090d747baafff038693b9d12ba3f2c363df22701ed675181912bb9d668f2150",
     "backend/models/application_services/dto.py": "da8f038986a7928851bc041dae9f6168655b6ca8184d254d12cb9cb048b649c1",
     "backend/models/application_services/management_docs.py": "40f839e4bdfc1cf693f39387a166bff3b5e703d8ec513f503840b15168f5415d",
     "backend/models/auth/dto.py": "0108e7dc6360e16bcbb7fa0abcf5fb4766d1e9e7214b2916a0126cf9aa284ab4",
@@ -130,7 +131,7 @@
     "backend/routers/vector_stores.py": "4ceb23668a2befc645e465acd0eca032d35334fb17bf7b3a784b285ddf63dc80"
   },
   "source_exports_sha256": {
-    "core-openapi-b436c037d.json": "c3dc7974692ce4b603e3997d887fe91b6618044bd9ec534757b7eb40cf1118c7",
-    "manifest-schema-b436c037d.json": "c5fd341968e558a5ad023d544408815c942e1d7f9c0715bccb515585d893100e"
+    "core-openapi-663b69cc6.json": "3c2cd4aa3d5beaeed994852dd14a4e242c13764aeff5ccfb5987ac9d973255ea",
+    "manifest-schema-663b69cc6.json": "c5fd341968e558a5ad023d544408815c942e1d7f9c0715bccb515585d893100e"
   }
 }
