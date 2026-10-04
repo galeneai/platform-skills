@@ -5,7 +5,7 @@ info:
   description: Application publication, installation, tenant sign-in, direct application services, installed
     MCP destinations and explicit owner delegation contracts exported from the exact Platform Core commit
     recorded in snapshot-lock.json. Unrelated Core APIs are omitted.
-  x-platform-core-commit: a7d18d4d39698269634e7e08b2225aead2a3fd6d
+  x-platform-core-commit: 6910400ac8d833342ba0f51439fbb76c2347e7fa
 servers:
 - url: /
 paths:

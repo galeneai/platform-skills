@@ -2,7 +2,7 @@
 
 ## Contract status
 
-The packaged manifest schema and focused OpenAPI pin Platform Core `a7d18d4d39698269634e7e08b2225aead2a3fd6d` (Core 1.3.0), including manifest 1.0 service/resource requirements and internal endpoints, `/v1/services`, the eleven job-consent, inbox/preferences, resource and credential management routes, and installed MCP/owner consent contracts. Compare the relevant public contract with the explicit target before packaging or installation; tenant configuration, approvals and runtime readiness remain separate prerequisites. This is the final recorded contract source for the snapshot. A live target OpenAPI download cannot replace the versioned snapshot or its hashes. See [contracts](contracts.md).
+The packaged manifest schema and focused OpenAPI pin Platform Core `6910400ac8d833342ba0f51439fbb76c2347e7fa` (Core 1.3.0), including manifest 1.0 service/resource requirements and internal endpoints, `/v1/services`, the eleven job-consent, inbox/preferences, resource and credential management routes, and installed MCP/owner consent contracts. Compare the relevant public contract with the explicit target before packaging or installation; tenant configuration, approvals and runtime readiness remain separate prerequisites. This is the final recorded contract source for the snapshot. A live target OpenAPI download cannot replace the versioned snapshot or its hashes. See [contracts](contracts.md).
 
 ## Declare intent in manifest 1.0
 

@@ -4,22 +4,23 @@
   "source": {
     "repository": "galeneai/platform-core",
     "ref": "commit",
-    "commit": "a7d18d4d39698269634e7e08b2225aead2a3fd6d",
+    "commit": "6910400ac8d833342ba0f51439fbb76c2347e7fa",
     "captured_date": "2026-10-04"
   },
   "contracts": {
     "application_manifest_json_schema": {
       "path": "application-manifest.schema.json",
-      "sha256": "5cc2e8005c523246caf04d06682d81f493ff0722137ef4788f87f7f0d226c083"
+      "sha256": "5a009eb7ea15a2809ce85e4a86e015cb5513d86cc12f62f17676d807916596f8"
     },
     "app_api_openapi": {
       "path": "application-api.openapi.yaml",
-      "sha256": "0a7638cb42b0720e03d7218fc7380e0512d356778a650636d20e99e1782bae26"
+      "sha256": "385cd00d30aadebb52c7b4b4be50608190f8c2693bc191ca88e311abf838d528"
     }
   },
   "source_files_sha256": {
     "backend/controllers/agent_mcp_bindings.py": "27767fc71f55fc5daad30e51d6da9c73b607f261ff419c43ba2301ddde43175a",
     "backend/controllers/agent_owner_delegations.py": "17bac2ef3a1c8a95c5e6b7eafd2c801c24c4a6ad75085724be333c3bd4898f4e",
+    "backend/controllers/application_notification_mail.py": "7fa974a4d2d432887a0724b78fa048cff2eba9d4b147986b0401a7ad2dc71431",
     "backend/controllers/application_operations.py": "038f275db18900d9c6e6a8e1958429409b3f36131fed88176e014f3305170e80",
     "backend/controllers/application_service_job.py": "3095c92cd13f93071b2cbe6f67a73fca178209936c62f0152f5cc1034b2a063c",
     "backend/controllers/application_services.py": "ad0b08db758ff87544fbce79ff8ab76df9e28e03fae1fbff0109191093835b5b",
@@ -30,6 +31,7 @@
     "backend/controllers/controlplane/tenants.py": "9b801e88beb1d04299b164ef906157a8be7a6ab8bef74bc60b2be86a93d6e254",
     "backend/controllers/filesystems/application_resource.py": "a18bf7e82dbc280efff14d59449d2e72b379dfe4544f4ff4f5aa42acef2464f7",
     "backend/controllers/tenant_mcp.py": "70983f9c5c52ab1a05e81bb28dd71fa6bec8d1b8d0c87252ea1adf28f37c2e39",
+    "backend/controllers/tenant_smtp.py": "7c98e062094036e6e38f6048b6fa642dc3770df2707e2441c7ed4b27c8e4554a",
     "backend/controllers/tenant_sso.py": "3ac6201b710c044413e605d0b09699af3372769adf4cbca82efe61b6986f4232",
     "backend/core/application_services/__init__.py": "c3fd834b2d824de257e07a202f0c78721e0323d9084680b7cf6c0567ae9dd985",
     "backend/core/application_services/auth.py": "e6dc212518c7e9677c83038eb574eb7cc84f532cd9748e652e40c5449591ed1c",
@@ -37,15 +39,17 @@
     "backend/core/application_services/context.py": "de1c1f6ffe5745b72b53cf88e255ed2e53b4529776947b818e613b9ce0d882d0",
     "backend/core/application_services/database.py": "6eeb57aac0f701654e5a9f739e951897841142e3df2cee6928f73ab3f6cdc34e",
     "backend/core/application_services/database_contract.py": "988e9652ee68f2cb6aa67717473d74022c54af3ae403e00f8e881dd1a9902e8c",
+    "backend/core/application_services/diagnostics.py": "86497577b117ecdb58238745c9ba4f577d748bf1f99ff4c4165feadbabd79996",
     "backend/core/application_services/documents.py": "f043e0f8ce409104e94323db1aea475a4c2198eebdf60da113f98884798f9d5c",
     "backend/core/application_services/filesystem.py": "5e3f9471b3c5a617a4d6f6689850e426bec95bb41b4dcf0bdb120ece922c76db",
     "backend/core/application_services/inference.py": "3f69d7e4b4f99a003546d419722f5411c637d3a1f4660a8492c6dc2e13137d1a",
-    "backend/core/application_services/installed_endpoints.py": "15d3bb0fd1a03b5cef67e60cf6bf73d414f5420ff037fbbf17602a0bef7067a1",
+    "backend/core/application_services/installed_endpoints.py": "4bdbddb0f3efc83ceef334d0e6a1baf9b24ebb36c5f69e088cc411b5f8f044be",
     "backend/core/application_services/job_callbacks.py": "839ee204d192852653da51a61da4be32438fd4cbb11ea7491ecbb40e6a7612f3",
     "backend/core/application_services/jobs.py": "83994ec447b106310b19dd88031c0979b214f0c3ed30b00669e1042061239542",
     "backend/core/application_services/lifecycle.py": "adc6917ee1c610f9594e3fe2b40496f8a4ebc77742184770f7655e93438e026c",
     "backend/core/application_services/mcp.py": "f8da7a4b31879299d64f1e0efbba5af209a1f898e456dd7007b8bd41a8feab1f",
-    "backend/core/application_services/notifications.py": "934f0bec6c04e7619882fc0cbb9604ed9941ac47c8bc7489123ff8b781fa60d6",
+    "backend/core/application_services/notification_mail.py": "2721fd7f8c64d7ec613c448840ca91cc5739606b1af1f83f99eed2a250abdecd",
+    "backend/core/application_services/notifications.py": "8c2f72651df5fa9cce6358cf305043bed633fe0207e2fa080e220dc96d1330ac",
     "backend/core/application_services/observability.py": "5b7a3403160b8f1d6d2f9029d41f6f0c84f52d406b43cc7e3cfb075eb354849f",
     "backend/core/application_services/provisioning.py": "d53f870ddcdb1d2a759dd332088fe40692c39bd210c616a6060a419d06919708",
     "backend/core/application_services/relay.py": "89993703196a9f4d1029292498b150483e9057b7f077c5aecbeeffcc7e8d7335",
@@ -57,7 +61,7 @@
     "backend/core/authentication/sso_facade.py": "a013c36bb364381fad25c6e7240e044e27978bd7b9b0c10c15f83881e145b3b8",
     "backend/core/controlplane/authorization.py": "54a0426e9677d39acdd82512bce523446ad8c6984e950ae7e1c607e78a9ead03",
     "backend/core/inference/tenant_helpers.py": "8ec540a4cd3874b3eb1d7c0e6e9670ef158d71beed61f04c6e5fb045bcc7abd0",
-    "backend/core/mcp/installed.py": "90cd4d2a5f6a1c715e63b3a47509623f49994e896bf1e5c4d0eb0048a66a9ec6",
+    "backend/core/mcp/installed.py": "f0ce5abb15a7e5b4facd3ee9812b6e1f052bf546ec8cbf6d0bb1774104a792ef",
     "backend/core/mcp/owner_delegation.py": "dfbcbc344ea7bc48f9e103b3dea99988e4289d0cb3265740e8cf99dd19103df8",
     "backend/core/mcp/resource_access.py": "3eb6e76b1da2e3677692aed79180d46d96ea4833ef0a8eb0446b4c3c55a95801",
     "backend/core/mcp/service.py": "078f33292709d2760fc5782b1e9d9073c68f8063709e6c6499c7fbfcd9520080",
@@ -67,11 +71,14 @@
     "backend/core/storage/sandbox_policy.py": "763d2d3c4cb0e85829e06867cf2af173a51469a1b1f657dfe5644334340beb09",
     "backend/core/tenant/email.py": "b6930869351c9a046a67d6acb8f3346d9a05c13993db2da8db621be05c895dab",
     "backend/core/tenant/keycloak.py": "06f594e4fca209f99ff07b25d7ec1d292d845deb5e0507a9040852d4fed44d49",
+    "backend/core/tenant/smtp_secrets.py": "53a48bddb82871ae7474da1e1d01830cdd532afeec043abe7c8187ecaab44d50",
+    "backend/core/tenant_assertions.py": "0050a7261d25c60c4fb779031a52239e967d40ffa87db276d0a8f20c77808f67",
+    "backend/jobs/controlplane_notification_email.py": "0b3099f9768823700a8024598e816e065e9a2ec1d0f5cef26bbe87a25e4936f9",
     "backend/jobs/workflows/application_archive_import/activities.py": "6195ba9b1691509dca591e2c6d1064afe91f9bfe6e3a2ab624f07fc8d323f999",
     "backend/jobs/workflows/application_service/__init__.py": "343d4fec9f4288d229c7ab0f22d414357d7bc2e3974f6641b5e011fe0bc34724",
     "backend/jobs/workflows/application_service/activities.py": "c17c65ec9ccde22046ae88a828ebe06421448220f017b3619f251924aee7e18c",
     "backend/jobs/workflows/application_service/workflows.py": "dc25259a01ce4cc2dd4559c97a9ecde2aaa941abd9fc9d014dc9b5cffceab2b3",
-    "backend/main.py": "331bd75b230493c406f4135099ad57f6e7fca44c34c605d6c20350177e6ceaf6",
+    "backend/main.py": "c447ad3ce8117428e48d3530547561b7b0265cecf4b7d007b4cfbb275ef77cb0",
     "backend/migrations/tenant/versions/0146_agent_owner_delegations.py": "d02a8eabe625586ad50ce7894d7189889537c5a098bea933549cd431f039b4dd",
     "backend/models/agents/agent_owner_delegation/dto.py": "5b3922a3e124ae9a5e7ff21dcaaef0882135b8468530e75cbdb86c9730c8621a",
     "backend/models/agents/agent_owner_delegation/entity.py": "3c4e8e4e868a0fc855a0a73164b21e5cfafe0c256c00c7c43734b90b3f01063f",
@@ -97,8 +104,10 @@
     "backend/models/controlplane/tenant_application_domain/dto.py": "b550550d415754afe8bdbd783c58cfd746de03c3400b142bd89ebd74d7cdbf1e",
     "backend/models/controlplane/user/dto.py": "8871eb6cec0e2f9518a30d24c9e27202842e4324c75023f76556a118600c0ea7",
     "backend/models/identity/sso_connector/dto.py": "c36e0a96f47bbd1a2a13a94c6d7215ca7ee229077932c7601fdbe3fe2db31fa7",
+    "backend/models/tenant_smtp.py": "9e10d2838a673dc198fe5f14dc38b098b11e1f438e5e6bec6a3ccce4a0f24539",
     "backend/routers/agent_mcp.py": "fd3630e7679a0b9d9ddad722cf157c32514f64f76f7d107ea9a97c52a685f9aa",
     "backend/routers/agents.py": "2ef00bed7ca271dc0f4b357b8cd1153ec28665831575dfb026ee05a7e82a54eb",
+    "backend/routers/application_notification_mail.py": "d3ef066acc42e15a386bf145348779f778703757dba37b06544146e168733804",
     "backend/routers/application_service_jobs.py": "7e506939c555faa5daa8d1e888fec358afcea981f464066c364844841cccfa24",
     "backend/routers/application_service_notifications.py": "611cbd4ae211c7b2d08a489b04f1ec50713bb4619a1b6caecd424fe72c94be7b",
     "backend/routers/application_service_resources.py": "da6a5a91177bf6687419fb12e6bd237cb1fdb49e446f3817f0a629c721d93cc0",
@@ -117,10 +126,11 @@
     "backend/routers/sso_auth.py": "c1da60fd8d7ef80122e8471039a42b5fbdcdfda181d3dbd4ae138ac145854250",
     "backend/routers/tenant_applications.py": "06abe9a6b6350b9068e0822231a4eabb63289efad2c6a82ad4830edea8042bb6",
     "backend/routers/tenant_mcp.py": "5bdd8b14484cefaf3cdf5816c856316443cc6e956f00bfde0f5b5b20851e598d",
+    "backend/routers/tenant_smtp.py": "df39d41cdfb74192da53c76daee4af1ffdacdc217c8d7e1425369ff56dad0fdb",
     "backend/routers/vector_stores.py": "4ceb23668a2befc645e465acd0eca032d35334fb17bf7b3a784b285ddf63dc80"
   },
   "source_exports_sha256": {
-    "core-openapi-a7d18d4d3.json": "c3dc7974692ce4b603e3997d887fe91b6618044bd9ec534757b7eb40cf1118c7",
-    "manifest-schema-a7d18d4d3.json": "c5fd341968e558a5ad023d544408815c942e1d7f9c0715bccb515585d893100e"
+    "core-openapi-6910400ac.json": "c3dc7974692ce4b603e3997d887fe91b6618044bd9ec534757b7eb40cf1118c7",
+    "manifest-schema-6910400ac.json": "c5fd341968e558a5ad023d544408815c942e1d7f9c0715bccb515585d893100e"
   }
 }
