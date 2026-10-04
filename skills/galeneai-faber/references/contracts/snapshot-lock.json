@@ -4,17 +4,17 @@
   "source": {
     "repository": "galeneai/platform-core",
     "ref": "commit",
-    "commit": "6910400ac8d833342ba0f51439fbb76c2347e7fa",
+    "commit": "b436c037d5e2f124c8238beafcc018458b4a8ac6",
     "captured_date": "2026-10-04"
   },
   "contracts": {
     "application_manifest_json_schema": {
       "path": "application-manifest.schema.json",
-      "sha256": "5a009eb7ea15a2809ce85e4a86e015cb5513d86cc12f62f17676d807916596f8"
+      "sha256": "683a2cc4337bfffbbfddb81106aeafa5769d5aecae8f6277ff913d8bb8a8f98c"
     },
     "app_api_openapi": {
       "path": "application-api.openapi.yaml",
-      "sha256": "385cd00d30aadebb52c7b4b4be50608190f8c2693bc191ca88e311abf838d528"
+      "sha256": "42a1cbc6b05edf46187836c4a398737dce4575a9c5a9c199040de9a9209eea47"
     }
   },
   "source_files_sha256": {
@@ -40,7 +40,7 @@
     "backend/core/application_services/database.py": "6eeb57aac0f701654e5a9f739e951897841142e3df2cee6928f73ab3f6cdc34e",
     "backend/core/application_services/database_contract.py": "988e9652ee68f2cb6aa67717473d74022c54af3ae403e00f8e881dd1a9902e8c",
     "backend/core/application_services/diagnostics.py": "86497577b117ecdb58238745c9ba4f577d748bf1f99ff4c4165feadbabd79996",
-    "backend/core/application_services/documents.py": "f043e0f8ce409104e94323db1aea475a4c2198eebdf60da113f98884798f9d5c",
+    "backend/core/application_services/documents.py": "932e32dc27937363eea1af4e5e1f8463ddad4abc274aa4506881bef2d7c2238d",
     "backend/core/application_services/filesystem.py": "5e3f9471b3c5a617a4d6f6689850e426bec95bb41b4dcf0bdb120ece922c76db",
     "backend/core/application_services/inference.py": "3f69d7e4b4f99a003546d419722f5411c637d3a1f4660a8492c6dc2e13137d1a",
     "backend/core/application_services/installed_endpoints.py": "4bdbddb0f3efc83ceef334d0e6a1baf9b24ebb36c5f69e088cc411b5f8f044be",
@@ -130,7 +130,7 @@
     "backend/routers/vector_stores.py": "4ceb23668a2befc645e465acd0eca032d35334fb17bf7b3a784b285ddf63dc80"
   },
   "source_exports_sha256": {
-    "core-openapi-6910400ac.json": "c3dc7974692ce4b603e3997d887fe91b6618044bd9ec534757b7eb40cf1118c7",
-    "manifest-schema-6910400ac.json": "c5fd341968e558a5ad023d544408815c942e1d7f9c0715bccb515585d893100e"
+    "core-openapi-b436c037d.json": "c3dc7974692ce4b603e3997d887fe91b6618044bd9ec534757b7eb40cf1118c7",
+    "manifest-schema-b436c037d.json": "c5fd341968e558a5ad023d544408815c942e1d7f9c0715bccb515585d893100e"
   }
 }
