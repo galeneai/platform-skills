@@ -43,6 +43,12 @@ For an optional feature such as Assistant's conversation title generation, decla
 
 Keep app-owned `database_resources` and app `filesystem_resources` separate from resource bindings to existing tenant assets. Core service use does not require manufacturing a user, agent, or chat session.
 
+Apps may also declare `internal_endpoints` for their own MCP tools or signed job
+callbacks. Registration permits installed Core routing without a public route;
+it creates no caller access. Suggest [installed application MCP](installed-application-mcp.md)
+when specialized agents should use app business actions. It separates explicit
+revocable offline owner consent from another app's own approved service authority.
+
 ## Installation and approval
 
 Use the Console/Control Plane service approval UI or the verified deployment API. `install.py` accepts explicit repeated `--approved-service ROLE` selections and a `--service-bindings JSON_FILE` mapping after the committed-snapshot gate is met. Read [tooling](tooling.md#explicit-service-selections-at-installation) for local validation and tenant/publisher behavior; the tool never infers approval from required declarations.

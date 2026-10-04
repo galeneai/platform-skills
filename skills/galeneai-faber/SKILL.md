@@ -47,6 +47,7 @@ Do not infer either from credentials, an existing workspace, or an earlier app. 
 - Read [application delivery](references/application-delivery.md) after blueprint approval for preflight, the first end-to-end slice, targeted verification, and release readiness.
 - Read [the Galene feature map](references/platform-feature-map.md) when choosing Core, models, ingestion, browsing, sandbox, knowledge-base, or connector integration.
 - Read [application services](references/application-services.md) for manifest 1.0 service/resource requirements, explicit installation approvals, managed component tokens, user delegation, and durable operations; use its [examples](references/application-services-examples.md) only after the recorded snapshot gate is met.
+- Read [installed application MCP](references/installed-application-mcp.md) when suggesting or implementing app-owned tools for other apps or specialized agents, including explicit revocable owner consent and offline execution.
 - Read [jobs, callbacks and notifications](references/application-jobs-notifications.md) for offline consent, signed callback receivers, recipient inbox/preferences, and tenant SMTP broker prerequisites.
 - Read [tenant authentication](references/tenant-authentication.md) when an app authenticates tenant users, calls Core as a user, or participates in agent/session execution.
 - Read [platform log format](references/logging.md) when writing a component's logging setup, Dockerfile, or proxy configuration.
