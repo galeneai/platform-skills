@@ -15,13 +15,13 @@ After installation, start a new Codex task and invoke it with `$galeneai-faber`.
 
 ## Version and update policy
 
-The current skill release is **0.4.1**; its SemVer is in `skills/galeneai-faber/SKILL.md` metadata and the snapshot lock. It aligns the platform logging reference with the platform's content rules: no personal data, user file names, search terms or query strings in logs, and route-template access lines. The release is independent of an app's SemVer and the Platform Core commit; this docs-only update leaves the Core contract baseline and exported schema/OpenAPI SHA-256 values unchanged.
+The current skill release is **0.7.0**; its SemVer is in `skills/galeneai-faber/SKILL.md` metadata and the snapshot lock. It covers generic SSO returns for installed tenant applications, the `authentication.login_path` manifest contract, application-completed REST password recovery, and temporary-password first sign-in with explicit challenges. Next.js/Python examples show provider discovery, reset completion, required password changes and legacy Console fallback; API/OpenAPI discovery supports Console, Control Plane and application URLs. The platform logging reference follows the platform's content rules: no personal data, user file names, search terms or query strings in logs, and route-template access lines. The schema, focused OpenAPI and source hashes are refreshed from the exact committed Core revision recorded in the snapshot lock. The skill release is independent of an app's SemVer.
 
 - PATCH fixes wording or tooling behavior without changing the workflow.
 - MINOR adds a compatible workflow or reference.
 - MAJOR changes required behavior or an assumed public contract.
 
-When public Core contracts change, inspect the exact committed Core revision, refresh only affected snapshots and source hashes, update the lock's Core commit and skill version, and review the compatibility example. Do not copy native Core implementation into this repository. For a docs-only update, keep the Core snapshot unchanged and bump the skill version as appropriate.
+When public Core contracts change, inspect the exact committed Core revision, refresh only affected snapshots and source hashes, update the lock's Core commit and skill version, and review the compatibility example. Do not copy native Core implementation into this repository. For a skill, documentation or tooling update that does not refresh Core contracts, keep the Core snapshot unchanged and bump the skill version as appropriate.
 
 ## Checks
 
@@ -31,5 +31,13 @@ The app-builder tooling and unit tests are stack-free. Install its small Python 
 python3 -m pip install -r skills/galeneai-faber/scripts/requirements.txt
 python3 -m unittest discover -s skills/galeneai-faber/tests -v
 ```
+
+The auth example has separate checks using the app's FastAPI/httpx dependencies:
+
+```sh
+python3 -m unittest discover -s skills/galeneai-faber/assets/auth/python -v
+```
+
+The Next.js page can be type-checked in an app with React/TypeScript. See [auth integration examples](skills/galeneai-faber/references/auth-examples.md) for the required session/store adapters and target SSO/recovery limitations.
 
 These checks do not validate deployment behavior; app projects must verify the relevant behavior on each supported Compose and Kubernetes adapter.
