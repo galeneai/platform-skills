@@ -12,7 +12,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from _support import load_json, validate_manifest
+from _support import load_json, manifest_warnings, validate_manifest
 from http_client import open_no_redirect
 from install import _validated_base_url, verify_service_target
 
@@ -103,6 +103,9 @@ def main() -> int:
         except (ValueError, RuntimeError) as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             return 2
+
+    for warning in manifest_warnings(manifest):
+        print(f"WARN: {warning}", file=sys.stderr)
 
     if args.server_url and args.flow == "archive-import":
         print(

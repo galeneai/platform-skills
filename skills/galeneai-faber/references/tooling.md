@@ -6,6 +6,8 @@ The scripts use Python's standard library plus the jsonschema package for standa
 
 Resolve a UI URL to the Core API and download the public target OpenAPI with `python3 scripts/discover_api.py --url https://console.example.invalid --output ./target-openapi.json`, or use `--api-base-url` for an explicit Core base. Read [API discovery](api-discovery.md) for missing runtime config, tenant selection and snapshot boundaries. This helper performs unauthenticated read-only requests and needs only the standard library.
 
+`validate.py` also prints non-blocking `WARN:` lines for manifest patterns that fail on real clusters (see [runtime readiness](runtime-readiness.md)); they never change its exit status.
+
 Each project keeps three local files:
 
 - galene-app.json: the public Platform Core application manifest.

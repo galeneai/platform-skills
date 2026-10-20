@@ -21,7 +21,7 @@ SCRIPTS = SKILL_ROOT / "scripts"
 EXAMPLES = SKILL_ROOT / "references" / "contracts" / "examples"
 sys.path.insert(0, str(SCRIPTS))
 
-from _support import load_json, validate_manifest  # noqa: E402
+from _support import load_json, manifest_warnings, validate_manifest  # noqa: E402
 from doctor import doctor as run_doctor  # noqa: E402
 from http_client import NoRedirectHandler, open_no_redirect  # noqa: E402
 from install import (  # noqa: E402
@@ -702,6 +702,39 @@ class SkillToolingTests(unittest.TestCase):
             lock["contracts"]["app_api_openapi"]["sha256"],
         )
 
+
+
+class ManifestWarningsTests(unittest.TestCase):
+    def manifest(self, **component):
+        return {"components": [
+            {"name": "web", "connectivity": {"depends_on": ["api"]}, **component},
+            {"name": "api"},
+        ]}
+
+    def test_volume_without_storage_class_warns(self):
+        found = manifest_warnings(self.manifest(persistent_volume={"size": "1Gi", "mount_path": "/data"}))
+        self.assertTrue(any("storage_class" in item for item in found))
+        ok = manifest_warnings(self.manifest(persistent_volume={"size": "1Gi", "mount_path": "/data", "storage_class": "standard"}))
+        self.assertFalse(any("storage_class" in item for item in ok))
+
+    def test_required_upstream_names_the_injected_component_url(self):
+        found = manifest_warnings(self.manifest(env_schema=[{"name": "BACKEND_ORIGIN", "required": True}]))
+        self.assertTrue(any("GALENE_COMPONENT_<NAME>_URL" in item and "api" in item for item in found))
+
+    def test_secrets_and_defaults_do_not_warn(self):
+        found = manifest_warnings(self.manifest(env_schema=[
+            {"name": "TOKEN", "required": True, "sensitive": True},
+            {"name": "MODE", "required": True, "default": "demo"},
+        ]))
+        self.assertEqual(found, [])
+
+    def test_lab_default_warns(self):
+        found = manifest_warnings(self.manifest(env_schema=[{"name": "CORE_API_ORIGIN", "default": "https://api-beta.elettra.ai"}]))
+        self.assertTrue(any("lab value" in item for item in found))
+
+    def test_garbage_is_ignored(self):
+        self.assertEqual(manifest_warnings(None), [])
+        self.assertEqual(manifest_warnings({"components": "x"}), [])
 
 if __name__ == "__main__":
     unittest.main()

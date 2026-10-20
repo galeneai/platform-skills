@@ -42,6 +42,8 @@ Add focused tests for concrete risks such as tenant isolation, authorization, de
 
 Prioritize first-render responsiveness and interactive critical states early, then stop when the approved acceptance result is met. After the workflow is stable, run the scoped final acceptance pass once. For a later fix, repeat only checks affected by that change. State clearly which runtime adapters were verified and which remain unverified; success on one does not prove parity on another.
 
+Before treating a workflow as done for Kubernetes, run the checks of [runtime readiness](runtime-readiness.md#6-verify-on-the-target-before-claiming-parity) on a Kubernetes target: ready pods with no restarts, probes through the sidecar, database connection, bootstrap state. Passing tests and a Compose run do not cover them.
+
 ## Prepare a coherent release
 
 Group a coherent app change and verify the affected components, then keep app development separate from the platform publish/install cycle. Keep each published manifest, release note, and image digest immutable. Record complete `sha256:` image digests and the full source commit SHA as image provenance. Verify publication readiness from its actual response. Through public APIs, compare the running deployment manifest and digests with the release when the target exposes them; do not assume Docker or host access. Use the documented upgrade/update path to preserve the existing tenant installation and data; don't reinstall an existing app as a substitute for upgrade verification.

@@ -208,3 +208,53 @@ def validate_manifest(
 
 def canonical_json(value: Any) -> bytes:
     return (json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
+
+
+def manifest_warnings(value: Any) -> list[str]:
+    """Non-blocking findings for patterns that pass the schema but fail on real clusters.
+
+    See references/runtime-readiness.md. These never make validation fail.
+    """
+    warnings: list[str] = []
+    if not isinstance(value, dict) or not isinstance(value.get("components"), list):
+        return warnings
+    components = [item for item in value["components"] if isinstance(item, dict)]
+    names = {item.get("name") for item in components if isinstance(item.get("name"), str)}
+    for component in components:
+        name = component.get("name")
+        if not isinstance(name, str):
+            continue
+        volume = component.get("persistent_volume")
+        if isinstance(volume, dict) and not volume.get("storage_class"):
+            warnings.append(
+                f"components.{name}.persistent_volume: no storage_class; on a cluster without a default "
+                "StorageClass the pod stays Pending. Prefer the app database or object storage, or document the prerequisite"
+            )
+        connectivity = component.get("connectivity")
+        depends = []
+        if isinstance(connectivity, dict) and isinstance(connectivity.get("depends_on"), list):
+            depends = [item for item in connectivity["depends_on"] if isinstance(item, str) and item in names]
+        env_schema = component.get("env_schema")
+        for env_spec in env_schema if isinstance(env_schema, list) else []:
+            if not isinstance(env_spec, dict) or not isinstance(env_spec.get("name"), str):
+                continue
+            env_name = env_spec["name"]
+            required = env_spec.get("required") is True
+            if required and not env_spec.get("sensitive") and env_spec.get("default") in (None, ""):
+                hint = ""
+                if depends and any(token in env_name.upper() for token in ("ORIGIN", "URL", "UPSTREAM", "BACKEND", "API")):
+                    hint = (
+                        "; the platform injects GALENE_COMPONENT_<NAME>_URL for "
+                        + ", ".join(sorted(depends))
+                        + ": use it as the default"
+                    )
+                warnings.append(
+                    f"components.{name}.env_schema.{env_name}: required with no default, so the installer must type it"
+                    f"{hint}. Derive it or give a default when the platform already knows the value"
+                )
+            default = env_spec.get("default")
+            if isinstance(default, str) and any(token in default for token in ("test-tenant", ".elettra.ai", "api-beta")):
+                warnings.append(
+                    f"components.{name}.env_schema.{env_name}: the default looks like a lab value; ship neutral defaults"
+                )
+    return warnings

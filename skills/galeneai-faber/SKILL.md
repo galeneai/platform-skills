@@ -2,7 +2,7 @@
 name: galeneai-faber
 description: Build standalone apps for Galene tenants from discovery and an approved blueprint through release and tenant installation. Use for tenant application projects, not for implementing Galene platform internals.
 metadata:
-  version: "0.7.5"
+  version: "0.8.0"
 ---
 
 # Galene.AI Faber
@@ -28,7 +28,7 @@ Do not infer either from credentials, an existing workspace, or an earlier app. 
 2. Consult [the Galene feature map](references/platform-feature-map.md) only for features relevant to the approved app. For declared backend/worker services, read [application services](references/application-services.md) and its contract-status gate. Choose public app contracts and tenant capabilities; do not add native Galene code or rely on internal database access. For individual tenant sign-in, user-delegated API calls, or agent/session participation, also read [tenant authentication](references/tenant-authentication.md).
 3. Before writing a manifest, using app APIs, or packaging a release, read [contracts and snapshots](references/contracts.md). Treat the pinned snapshot as the contract at its recorded Platform Core commit. When only a tenant Console, Control Plane or application URL is available, read [API discovery](references/api-discovery.md) to resolve the public Core API base from runtime configuration and fetch that target's OpenAPI JSON; do not guess API hosts. Local validation helps authoring; Core remains authoritative at publication. New service releases require `app.requires_core: ">=1.3,<2.0"` with manifest 1.0, and Faber verifies the target version and public service schema/routes before mutations. The snapshot pins the final recorded Core 1.3 contract source, including installed MCP destinations and explicit owner consent; tenant prerequisites and runtime acceptance remain separate checks. Older Core revisions may ignore service fields and `requires_core`; a version range or successful installation alone does not establish service support. Verify the relevant target schemas/routes and explicit grants.
 4. After blueprint approval, read [application delivery](references/application-delivery.md). Preflight the public contracts and tenant prerequisites, then build the smallest real user workflow end to end. Make every component log in [the platform log format](references/logging.md) from the first slice. Verify the behavior and its concrete risks; avoid tests that only duplicate implementation details. Ask for a new approval only when a requirement must expand beyond the approved blueprint.
-5. Read [security and release](references/security-release.md) before declaring capabilities, database resources, secrets, or release versions. If integrated registry was selected, also read [integrated registry status](references/integrated-registry.md); do not promise multi-component atomic import until its final API is in a committed snapshot.
+5. Read [runtime readiness](references/runtime-readiness.md) before writing the container, proxy, health endpoints, database access, configuration or volumes. Read [security and release](references/security-release.md) before declaring capabilities, database resources, secrets, or release versions. If integrated registry was selected, also read [integrated registry status](references/integrated-registry.md); do not promise multi-component atomic import until its final API is in a committed snapshot.
 6. Use the stack-free tools described in [tooling](references/tooling.md), then follow [publish, availability, and install](references/publish-install.md) to release and install the app. Verify the tenant-visible deployment state when that action is in scope.
 
 ## Non-negotiable boundaries
@@ -38,7 +38,7 @@ Do not infer either from credentials, an existing workspace, or an earlier app. 
 - Keep Core-managed component bootstrap/access tokens server-side. Application service grants and verified user delegation are separate authority; offline work additionally needs the explicit consent contract.
 - Never put passwords, access tokens, private keys, registry auth files, tenant secrets, or live tenant data in the skill, manifest, archive, tests, logs, or generated docs. Use the tenant's secret-entry flow and server-side secret references.
 - App-owned database migrations run from the app at startup against its runtime DATABASE_URL. Do not ask Core or the runtime adapter to run application migration hooks.
-- Keep app behavior and contracts equivalent on Elettra/Docker Compose and Arethusa/Kubernetes. A single-runtime check does not establish parity.
+- Keep app behavior and contracts equivalent on Elettra/Docker Compose and Arethusa/Kubernetes. A single-runtime check does not establish parity: a Compose run does not exercise the injected database URL, the service-mesh sidecar, platform-injected component URLs or storage classes. Follow [runtime readiness](references/runtime-readiness.md) and verify on a Kubernetes target before claiming it.
 - Use the documented, authenticated Control Plane application API or UI for publisher installation, or the documented tenant API/UI when the user chooses tenant-scoped installation. Keep the target tenant explicit in either flow; do not access platform internals or bypass tenant authorization.
 
 ## Progressive references
@@ -54,6 +54,7 @@ Do not infer either from credentials, an existing workspace, or an earlier app. 
 - Read [API discovery](references/api-discovery.md) when resolving the Core API/OpenAPI from a Console, Control Plane or application URL.
 - Read [Next.js/Python auth examples](references/auth-examples.md) when building a webapp sign-in, SSO callback or password-recovery entry point.
 - Read [contracts and snapshots](references/contracts.md) when shaping a manifest or calling a published app API.
+- Read [runtime readiness](references/runtime-readiness.md) when writing the Dockerfile, web proxy, health endpoints, database connection, configuration derivation, volumes or first-start data, and before claiming Kubernetes support.
 - Read [security and release](references/security-release.md) when an app handles tenant data, capabilities, app databases, registry images, or installation.
 - Read [integrated registry status](references/integrated-registry.md) only if integrated registry import is selected or discussed.
 - Read [publish, availability, and install](references/publish-install.md) when publishing a version or installing it into a tenant.

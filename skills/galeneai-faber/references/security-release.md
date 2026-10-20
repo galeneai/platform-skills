@@ -16,7 +16,7 @@ Read [application services](application-services.md) before declaring service/re
 
 ## App-owned database
 
-Declare an application database resource only when needed. Core provisions an app-scoped database and injects its URL at the manifest-selected environment name, normally DATABASE_URL. Run the app's idempotent database migration command during app startup using that runtime DATABASE_URL. Keep migration source and migration history inside the app repository/image.
+Declare an application database resource only when needed. Core provisions an app-scoped database and injects its URL at the manifest-selected environment name, normally DATABASE_URL. The URL is libpq-style and may carry options such as `sslmode` that some drivers (asyncpg) reject: build every engine through one parser as described in [runtime readiness](runtime-readiness.md#1-the-injected-database-url-is-libpq-style). Run the app's idempotent database migration command during app startup using that runtime DATABASE_URL. Keep migration source and migration history inside the app repository/image.
 
 Do not request a Core callback, startup hook, platform-side migration command, or shared tenant database. A migration must not reach another app's schema or deployment. Make startup fail clearly when a required migration cannot complete; preserve the previous app revision and data on failed upgrades.
 
