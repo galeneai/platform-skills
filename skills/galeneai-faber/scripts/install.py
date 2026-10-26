@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import sys
@@ -65,16 +66,27 @@ def request_json(
 def _target_schema(document: dict[str, Any], schema: Any) -> dict[str, Any]:
     """Resolve only local component schema references from the advertised contract."""
     seen: set[str] = set()
-    while isinstance(schema, dict) and "$ref" in schema:
-        reference = schema["$ref"]
-        if (
-            not isinstance(reference, str)
-            or not reference.startswith("#/components/schemas/")
-            or reference in seen
-        ):
-            raise RuntimeError("target OpenAPI has an unsupported application-service schema reference")
-        seen.add(reference)
-        schema = document["components"]["schemas"].get(reference.rsplit("/", 1)[-1])
+    while isinstance(schema, dict):
+        if "$ref" in schema:
+            reference = schema["$ref"]
+            if (
+                not isinstance(reference, str)
+                or not reference.startswith("#/components/schemas/")
+                or reference in seen
+            ):
+                raise RuntimeError("target OpenAPI has an unsupported application-service schema reference")
+            seen.add(reference)
+            schema = document["components"]["schemas"].get(reference.rsplit("/", 1)[-1])
+        elif "anyOf" in schema:
+            alternatives = schema["anyOf"]
+            if not isinstance(alternatives, list):
+                raise RuntimeError("target OpenAPI has an invalid application-service schema")
+            alternatives = [item for item in alternatives if item != {"type": "null"}]
+            if len(alternatives) != 1:
+                raise RuntimeError("target OpenAPI has an ambiguous application-service schema")
+            schema = alternatives[0]
+        else:
+            break
     if not isinstance(schema, dict):
         raise RuntimeError("target OpenAPI is missing an application-service schema")
     return schema
@@ -87,6 +99,14 @@ def _target_properties(document: dict[str, Any], schema: Any) -> dict[str, Any]:
     return properties
 
 
+def _target_enum(document: dict[str, Any], schema: Any) -> set[str]:
+    field = _target_schema(document, schema)
+    values = field.get("enum")
+    if field.get("type") != "string" or not isinstance(values, list) or any(not isinstance(value, str) for value in values):
+        raise RuntimeError("target OpenAPI has an unsupported string enumeration")
+    return set(values)
+
+
 def verify_service_target(
     base_url: str,
     manifest: dict[str, Any] | None,
@@ -97,18 +117,20 @@ def verify_service_target(
     """Fail closed for new requirements; Core still validates the full requires_core range."""
     if not manifest or not (
         manifest.get("service_requirements") or manifest.get("resource_requirements")
-        or manifest.get("internal_endpoints")
+        or manifest.get("internal_endpoints") or manifest.get("model_requirements")
     ):
         return
     requester = api_request or request_json
     document = requester(_validated_base_url(base_url), "/openapi.json", "", "GET", None)
     if not isinstance(document, dict):
-        raise RuntimeError("target must advertise a verified Core 1.3 application-service contract")
+        raise RuntimeError("target must advertise a verified Core application-service contract")
     info = document.get("info")
     version = info.get("version") if isinstance(info, dict) else None
     release = re.fullmatch(r"([0-9]+)\.([0-9]+)\.([0-9]+)", version) if isinstance(version, str) else None
-    if not release or int(release[1]) != 1 or int(release[2]) < 3:
-        raise RuntimeError("application services require a verified Core >=1.3,<2.0 target")
+    if not release or not (
+        (int(release[1]) == 1 and int(release[2]) >= 3) or int(release[1]) == 2
+    ):
+        raise RuntimeError("application services require a verified Core 1.3+ or 2.x stable target")
     if not str(document.get("openapi", "")).startswith("3."):
         raise RuntimeError("target OpenAPI does not expose the application-service contract")
     components = document.get("components")
@@ -132,6 +154,67 @@ def verify_service_target(
     paths = document.get("paths")
     if not isinstance(paths, dict):
         raise RuntimeError("target OpenAPI is missing application-service routes")
+    inference_operations = {
+        operation for requirement in manifest.get("service_requirements", [])
+        if requirement.get("service") == "inference"
+        for operation in requirement.get("operations", [])
+    }
+    if inference_operations:
+        requirement = _target_schema(document, manifest_fields["service_requirements"])
+        fields = _target_properties(document, requirement["items"])
+        operations = _target_schema(document, fields["operations"])
+        advertised = _target_enum(document, operations.get("items"))
+        if not inference_operations.issubset(advertised):
+            raise RuntimeError("target OpenAPI does not support the declared inference operations")
+    if manifest.get("model_requirements"):
+        requirements = _target_schema(document, manifest_fields.get("model_requirements"))
+        if requirements.get("type") != "array":
+            raise RuntimeError("target OpenAPI is missing model requirements")
+        fields = _target_properties(document, requirements.get("items"))
+        for requirement in manifest["model_requirements"]:
+            slot = requirement.get("slot")
+            capabilities = {"llm": "chat", "embedding": "embedding", "stt": "transcription", "tts": "tts", "classification": "systemone", "realtime": "realtime"}
+            if slot not in capabilities or slot not in _target_enum(document, fields.get("slot")):
+                raise RuntimeError("target OpenAPI does not support the declared model slot")
+            defaults = {
+                "capabilities": [capabilities[slot]],
+                "input_modalities": ["audio" if slot in {"stt", "realtime"} else "text"],
+            }
+            for name, default in defaults.items():
+                field = _target_schema(document, fields.get(name))
+                if field.get("type") != "array":
+                    raise RuntimeError(f"target OpenAPI has unsupported model {name}")
+                advertised = _target_enum(document, field.get("items"))
+                if not set(requirement.get(name) or default).issubset(advertised):
+                    raise RuntimeError(f"target OpenAPI does not support the declared model {name}")
+            if requirement.get("min_context_window") is not None:
+                from jsonschema import Draft202012Validator, SchemaError
+
+                context_schema = _target_schema(document, fields.get("min_context_window"))
+                if context_schema.get("type") != "integer":
+                    raise RuntimeError("target OpenAPI does not support minimum model context windows")
+                # Validate numeric bounds without resolving target-controlled nested references.
+                bounds = {key: value for key, value in context_schema.items() if key in {
+                    "type", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf",
+                }}
+                if any(isinstance(value, float) and not math.isfinite(value) for value in bounds.values()):
+                    raise RuntimeError("target OpenAPI has invalid model context bounds")
+                try:
+                    Draft202012Validator.check_schema(bounds)
+                except SchemaError:
+                    raise RuntimeError("target OpenAPI has invalid model context bounds") from None
+                if not Draft202012Validator(bounds).is_valid(requirement["min_context_window"]):
+                    raise RuntimeError("declared model context minimum is outside the target contract")
+    if "speak" in inference_operations:
+        route = paths.get("/v1/services/inference/{service_role}/speak")
+        operation = route.get("post") if isinstance(route, dict) else None
+        body = operation.get("requestBody") if isinstance(operation, dict) else None
+        content = body.get("content") if isinstance(body, dict) else None
+        media = content.get("application/json") if isinstance(content, dict) else None
+        schema = media.get("schema") if isinstance(media, dict) else None
+        fields = _target_properties(document, schema)
+        if any(_target_schema(document, fields.get(name)).get("type") != "string" for name in ("model_role", "input")):
+            raise RuntimeError("target OpenAPI is missing the application speech channel contract")
     if manifest.get("internal_endpoints"):
         endpoints = _target_schema(document, manifest_fields.get("internal_endpoints"))
         if endpoints.get("type") != "array":

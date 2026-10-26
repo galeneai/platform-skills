@@ -416,7 +416,7 @@ class SkillToolingTests(unittest.TestCase):
     def test_service_install_rejects_old_or_unknown_target_before_authenticated_calls(self):
         manifest = {"service_requirements": [{"role": "search"}]}
         for auth_context in ("tenant", "publisher"):
-            for version in ("1.2.0", "1.2.99", "2.0.0", "unknown", "1.3.0rc1"):
+            for version in ("1.2.0", "1.2.99", "3.0.0", "0.0.0+dev", "unknown", "1.3.0rc1"):
                 with self.subTest(auth_context=auth_context, version=version):
                     calls = []
 

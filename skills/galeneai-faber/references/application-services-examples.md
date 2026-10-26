@@ -4,7 +4,7 @@ These fictional examples accompany the [pinned application-services contract](ap
 
 ## Manifest additions
 
-Merge these fields into an ordinary manifest with named `backend` and `worker` components of the corresponding kinds. They remain schema version 1.0; set the existing `app.requires_core` to `">=1.3,<2.0"` before publishing this service release. Select only roles needed by the approved blueprint; this example illustrates choices, not a recommended blanket grant.
+Merge these fields into an ordinary manifest with named `backend` and `worker` components of the corresponding kinds. They remain schema version 1.0; choose `app.requires_core` for the verified target release as described in [contracts](contracts.md). The legacy `">=1.3,<2.0"` example does not cover Core 2.x or prove native support. Select only roles needed by the approved blueprint; this example illustrates choices, not a recommended blanket grant.
 
 ```json
 {
@@ -159,6 +159,8 @@ The inner MCP tool arguments must match that exact approved remote tool's curren
 
 ## Schedule and offline consent
 
+For native decision/speech/realtime examples, see [native inference additions](#native-inference-additions). Only durable operations with explicit job support may be scheduled; a live channel is not an offline job.
+
 Approve `scheduler` and its target `files` role, with `workspace` bound writable. This source-backed shape follows the probe's scheduled filesystem write, using the logical roles in this guide. Choose a future `dtstart` when using it; these fixed dates are fictional examples. The offset-free anchor uses the explicit calendar timezone.
 
 ```json
@@ -182,6 +184,42 @@ Approve `scheduler` and its target `files` role, with `workspace` bound writable
 For application-mode work, submit with only the app bearer. For user-mode work, both `scheduler` and `files` must allow user execution; include the actual creator's delegated bearer. The completed create operation returns `result.job_id`; user mode returns job status `pending_consent`.
 
 For user approval, GET `/application-jobs/{job_id}` with that creator's ordinary tenant bearer, present the returned immutable work/calendar/scope, and POST `/application-jobs/{job_id}/approve` only after their explicit decision. The JSON shape is `{expires_at: <timezone-aware future timestamp within 1 minute–30 days>, scope: <complete scope copied from GET>}`. A role-only scope fragment is not sufficient. This user call does not use the app bearer or delegation header. Revoke with POST `/application-jobs/{job_id}/revoke`.
+
+## Native inference additions
+
+Use only the subset needed by the blueprint, after verifying [native availability](inference-gateway.md#declare-requirements-and-verify-availability) and the target release constraint. Merge into an ordinary manifest with a `backend` component, then explicitly approve the selected services and select the model bindings:
+
+```json
+{
+  "model_requirements": [
+    {"role":"judge","slot":"classification","capabilities":["systemone"],"input_modalities":["text"]},
+    {"role":"voice","slot":"tts","capabilities":["tts"],"input_modalities":["text"]},
+    {"role":"conversation","slot":"realtime","capabilities":["realtime"],"input_modalities":["audio"]}
+  ],
+  "service_requirements": [
+    {"role":"decisions","service":"inference","operations":["decide"],"execution_modes":["application","user"],"target_components":["backend"]},
+    {"role":"voice-service","service":"inference","operations":["speak","realtime"],"execution_modes":["application","user"],"target_components":["backend"]}
+  ]
+}
+```
+
+Decision submission uses `POST /v1/services/operations`, an application access bearer, optional approved user delegation and a persisted idempotency key:
+
+```json
+{"service_role":"decisions","operation":"decide","arguments":{"model_role":"judge","state":"The task is complete.","questions":{"complete":{"type":"noul","instructions":"Is the task complete?"}}}}
+```
+
+Poll the returned operation UUID; preserve native typed answers, probability distributions and diagnostics only after `succeeded`. Do not derive confidence by asking a chat model to invent a number.
+
+Speech instead uses `POST /v1/services/inference/voice-service/speak` from the backend with the application access bearer:
+
+```json
+{"model_role":"voice","input":"Hello","response_format":"pcm","stream":true,"stream_format":"audio"}
+```
+
+This returns a native audio stream, not a durable operation ID. Use a format supported by the bound model; the example makes no voice, sample-rate or playback promise.
+
+Realtime uses `WS /v1/services/inference/voice-service/realtime?model_role=conversation&mode=duplex` from the backend with its application access bearer and the actual delegated user header when approved user mode is selected. Do not put tokens in the query or open Core directly from the browser. Follow [realtime protocol and completion](inference-gateway.md#realtime-protocol-and-completion) for negotiation, credential renewal, interruption/resume support and cleanup. Neither live request goes to `/v1/services/operations`; neither is suitable as a scheduled operation.
 
 Use these operation arguments to manage the job; every separate action has its own persisted outer operation key:
 

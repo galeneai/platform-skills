@@ -15,7 +15,9 @@ After installation, start a new Codex task and invoke it with `$galeneai-faber`.
 
 ## Version and update policy
 
-The current skill release is **0.8.0**; its SemVer is in `skills/galeneai-faber/SKILL.md` metadata and the snapshot lock. It includes conditional guidance for generic app SSO returns, `authentication.login_path` and application-completed REST password recovery when separately verified on the target. Those contracts are absent from the pinned Core baseline; do not enable them from the templates alone. Temporary-password first sign-in uses the pinned explicit challenge contract. Next.js/Python examples show provider discovery, conditional reset completion, required password changes and supported legacy Console fallback; API/OpenAPI discovery supports Console, Control Plane and application URLs. The platform logging reference follows the platform's content rules: no personal data, user file names, search terms or query strings in logs, and route-template access lines. The schema, focused OpenAPI and source hashes are refreshed from the exact committed Core revision recorded in the snapshot lock. The skill release is independent of an app's SemVer.
+The current skill version is **1.0.0**; its SemVer is in `skills/galeneai-faber/SKILL.md` metadata and the snapshot lock. This major update refreshes the authoring baseline to Platform Core develop commit `a44fd195ea92e3387b5e7a003b79b061e95501b3` and adds [inference interface guidance](skills/galeneai-faber/references/inference-gateway.md): tenant-user REST, durable application operations and backend live audio/realtime channels. It covers all six model slots, tools/structured output/reasoning, multimodal embeddings, SystemOne decisions, speech/transcription, token-count scope and native runtime gates. The offline export honestly retains Core's `0.0.0+dev` identity; a source pin is not a released or deployed version. Preflight qualifies stable Core 1.3+ in major 1 or stable 2.x with the required contracts, checks declared model/inference features and rejects unknown/development/prerelease/future-major targets. Core still validates the full release constraint. WebSocket support and native readiness require separate verification.
+
+Existing conditional guidance for generic app SSO returns, `authentication.login_path` and application-completed password recovery is retained; those contracts remain absent from this pinned baseline and require separate target verification. Temporary-password first sign-in uses the explicit challenge contract. Next.js/Python examples cover provider discovery, conditional recovery and required password changes; API discovery supports Console, Control Plane and application URLs. Logging follows the platform content rules. The schema, focused OpenAPI and source hashes come from the exact revision recorded in the lock. The skill version is independent of app and Core versions.
 
 It also covers manifest 1.0 application service/resource requirements and internal MCP/callback endpoints, explicit service approvals and bindings, managed backend/worker credentials, durable direct operations, offline job consent, callbacks and recipient notifications. The focused snapshot includes installed MCP registration, agent tool binding, explicit revocable offline owner consent and provider introspection. A snapshot pins source contracts and does not establish runtime deployment or delivery.
 
@@ -29,7 +31,7 @@ When public Core contracts change, inspect the exact committed Core revision, re
 
 ## Checks
 
-The app-builder tooling and unit tests are stack-free. Install its small Python dependency set and run the focused suite from the repository root:
+The app-builder tooling and unit tests are stack-free and require Python 3.10+. Install its small Python dependency set and run the focused suite from the repository root:
 
 ```sh
 python3 -m pip install -r skills/galeneai-faber/scripts/requirements.txt

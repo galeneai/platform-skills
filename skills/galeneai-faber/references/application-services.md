@@ -2,11 +2,11 @@
 
 ## Contract status
 
-The packaged manifest schema and focused OpenAPI pin Platform Core `ea864468d8f4ef1da3543dc37b960d2a4349de09` (Core 1.3.0), including manifest 1.0 service/resource requirements and internal endpoints, `/v1/services`, the eleven job-consent, inbox/preferences, resource and credential management routes, and installed MCP/owner consent contracts. Compare the relevant public contract with the explicit target before packaging or installation; tenant configuration, approvals and runtime readiness remain separate prerequisites. This is the final recorded contract source for the snapshot. A live target OpenAPI download cannot replace the versioned snapshot or its hashes. See [contracts](contracts.md).
+The packaged manifest schema and focused OpenAPI pin Platform Core `a44fd195ea92e3387b5e7a003b79b061e95501b3` (develop source, not a release), including manifest 1.0 service/resource requirements and internal endpoints, `/v1/services`, job-consent, inbox/preferences, resource and credential management routes, installed MCP/owner consent and public inference contracts. Compare the relevant public contract with the explicit target before packaging or installation; tenant configuration, approvals and runtime readiness remain separate prerequisites. A live target OpenAPI download cannot replace the versioned snapshot or its hashes. See [contracts](contracts.md).
 
 ## Declare intent in manifest 1.0
 
-Set `app.requires_core` to `">=1.3,<2.0"` for new service releases and keep `schema_version` at `"1.0"`. Core 1.3 is the first release version assigned to this service contract; a Core 1.2 version alone cannot establish support for these fields. The installer/publication preflight checks target OpenAPI before mutations; see [the version barrier and source pin](contracts.md). Declare logical service roles in `service_requirements` and tenant resource roles in `resource_requirements`. These declarations request access; installation must separately approve service roles and bind resources.
+Keep `schema_version` at `"1.0"` and choose `app.requires_core` for the verified target release and required features. The historical `">=1.3,<2.0"` range applies only to verified legacy Core 1.x service releases; it excludes Core 2.x and does not establish native feature support. For Core 2.x, pin the verified release or a verified compatible range below 3.0. No earliest native release is inferred from this develop source. The installer/publication preflight checks target OpenAPI before mutations; see [the version barrier and source pin](contracts.md). Declare logical service roles in `service_requirements` and tenant resource roles in `resource_requirements`. These declarations request access; installation must separately approve service roles and bind resources.
 
 A service entry contains:
 
@@ -27,7 +27,7 @@ A resource entry has a unique logical `role`, a `kind`, `access` (`read` by defa
 | `database_connectors` | `schema.read`, `query.read` | Database connector |
 | `documents` | `extract`, `ocr`, `convert` | Writable source for processing; writable destination for conversion |
 | `retrieval` | `search`, `index` | Filesystem with indexed/source documents |
-| `inference` | `chat`, `embedding`, `transcribe` | Declared model role, selected separately |
+| `inference` | Durable: `chat`, `embedding`, `transcribe`, `decide`; live channels: `speak`, `realtime` | Declared model role, selected separately; see [inference interfaces](inference-gateway.md) |
 | `filesystem` | `read`, `write`, `checkpoint` | Filesystem; write/checkpoint require `read_write` |
 | `mcp` | `catalog`, `invoke` | MCP connector |
 | `jobs` | `schedule` | Explicitly approved downstream work and consent, as described below |
@@ -35,7 +35,7 @@ A resource entry has a unique logical `role`, a `kind`, `access` (`read` by defa
 
 MCP `invoke` needs a nonempty `mcp_tools` allowlist without wildcards. Core validates tools and pins their approved schemas during binding approval; changed schemas require approval again. Catalog discovery does not authorize newly found tools. Trusted schema hashes belong to Core's internal binding metadata; installation requests and deployment responses expose only `resource_id` and `access`.
 
-For inference, also declare `model_requirements` with the logical role and slot: `llm`/`chat`, `embedding`/`embedding`, or `stt`/`transcription` with audio input. Send `arguments.model_role`, never a provider key, URL, or arbitrary model ID. Core resolves the current tenant-authorized model binding and active embedding assignment for each call. Declare image modality for OCR's vision role when required. Usage is reported from actual upstream observations; unavailable usage must stay unavailable.
+For inference, also declare `model_requirements` with the logical role and slot: `llm`/`chat`, `embedding`/`embedding`, `stt`/`transcription`, `tts`/`tts`, `classification`/`systemone` or `realtime`/`realtime`. STT/realtime require audio input; other slots require text. `min_context_window` is optional for `llm` only. Use the declared `model_role`, never a provider key, URL, or arbitrary model ID. Core resolves the current tenant-authorized model binding and active embedding assignment for each call. Declare image modality for OCR's vision role when required. Usage is reported from actual upstream observations; unavailable usage must stay unavailable. Read [inference interfaces](inference-gateway.md) for route selection, native gates and per-interface limitations.
 
 `chat` accepts optional `disable_reasoning_if_supported` (default false). With true, Core requests reasoning off only when the resolved model catalog has `thinking_control: "per_request"` and includes `"off"` in `reasoning_efforts`; otherwise provider behavior is unchanged. This flag does not select a model, override its catalog policy or guarantee a nonempty answer. Budget output tokens for the task and inspect `text` and `finish_reason` before claiming success; truncation is not a completed answer.
 
@@ -99,7 +99,7 @@ User-mode scheduled work requires explicit offline consent for its exact immutab
 
 ## Durable operations
 
-The public service family uses these operation routes:
+The public service family uses these durable operation routes. Inference `speak` and `realtime` instead use dedicated backend live channels; they are not accepted by this durable adapter. See [inference interfaces](inference-gateway.md#application-live-channels).
 
 | Route | Purpose |
 |---|---|
@@ -151,7 +151,7 @@ Use service arguments and results from the verified snapshot; [examples](applica
 - Database discovery/query uses bound connectors and parameterized read-only SQL. Core returns bounded results and enforces tenant capacity; apps never receive database credentials.
 - Documents reuse Core extraction/OCR/conversion. Source and destination paths stay within bound filesystems. OCR uses an approved model role; conversion writes a new path with writable authority.
 - Retrieval uses indexed documents from bound filesystems and the active embedding authority; vector, multimodal, and graph modes have their own tenant prerequisites. Index completion must reflect real downstream processing.
-- Inference is explicit chat, embedding, or transcription against a declared model role. Provider configuration and accounting remain Core-owned.
+- Inference is explicit chat, embedding, transcription or typed decisions through durable operations, and speech/realtime through dedicated live channels, against a declared model role. Provider configuration and accounting remain Core-owned; follow [inference interfaces](inference-gateway.md).
 - Filesystem operations use relative normalized paths under the bound resource. Writes and checkpoints require write access; raw write cannot overwrite a tracked document.
 - MCP invokes only the exact approved tool allowlist with matching current schemas. Connector secrets remain inside Core.
 - Jobs schedule only explicitly authorized work and consent; job lifecycle is separate from the submission operation lifecycle.
