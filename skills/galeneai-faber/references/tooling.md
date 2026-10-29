@@ -1,12 +1,14 @@
 # Stack-free project tooling
 
-The scripts require Python 3.10+ and use its standard library plus the jsonschema package for standards-compliant JSON Schema validation. Doctor, offline validation, packaging, import-response verification, and their unit tests do not require a running Galene stack. These authoring checks do not prove target-tenant permissions, a live API prerequisite, publication readiness, or runtime readiness. Install the optional Python tool dependency with:
+The scripts require Python 3.10+ and use its standard library plus the jsonschema package for standards-compliant JSON Schema validation and the packaging package for PEP 440 version ranges. Doctor, offline validation, packaging, import-response verification, and their unit tests do not require a running Galene stack. These authoring checks do not prove target-tenant permissions, a live API prerequisite, publication readiness, or runtime readiness. Install the optional Python tool dependency with:
 
     python3 -m pip install -r scripts/requirements.txt
 
 Resolve a UI URL to the Core API and download the public target OpenAPI with `python3 scripts/discover_api.py --url https://console.example.invalid --output ./target-openapi.json`, or use `--api-base-url` for an explicit Core base. Read [API discovery](api-discovery.md) for missing runtime config, tenant selection and snapshot boundaries. This helper performs unauthenticated read-only requests and needs only the standard library.
 
-`validate.py` also prints non-blocking `WARN:` lines for manifest patterns that fail on real clusters (see [runtime readiness](runtime-readiness.md)); they never change its exit status.
+`validate.py` also prints non-blocking `WARN:` lines for manifest patterns that fail on real clusters (see [runtime readiness](runtime-readiness.md)) and for an `app.requires_core` that is missing, excludes Core 2.x or still admits 1.x (see [Core compatibility](contracts.md#core-compatibility)); `doctor.py` prints the same compatibility warnings. Warnings never change the exit status. With `--target-url`, `validate.py` reads the target's public OpenAPI version and fails when `app.requires_core` excludes it, proposing the upgrade to `">=2.0,<3.0"` for a Core 2.x target.
+
+The scripts need `jsonschema` and `packaging` (PEP 440 ranges) from `scripts/requirements.txt`.
 
 Each project keeps three local files:
 

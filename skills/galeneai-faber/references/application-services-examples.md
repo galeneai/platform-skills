@@ -4,7 +4,7 @@ These fictional examples accompany the [pinned application-services contract](ap
 
 ## Manifest additions
 
-Merge these fields into an ordinary manifest with named `backend` and `worker` components of the corresponding kinds. They remain schema version 1.0; choose `app.requires_core` for the verified target release as described in [contracts](contracts.md). The legacy `">=1.3,<2.0"` example does not cover Core 2.x or prove native support. Select only roles needed by the approved blueprint; this example illustrates choices, not a recommended blanket grant.
+Merge these fields into an ordinary manifest with named `backend` and `worker` components of the corresponding kinds. They remain schema version 1.0; choose `app.requires_core` for the verified target release as described in [contracts](contracts.md). New apps use `">=2.0,<3.0"`; the legacy `">=1.3,<2.0"` range does not cover Core 2.x or prove native support. Select only roles needed by the approved blueprint; this example illustrates choices, not a recommended blanket grant.
 
 ```json
 {

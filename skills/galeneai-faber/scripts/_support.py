@@ -16,6 +16,8 @@ SEMVER = re.compile(
     r"(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?"
     r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
 )
+CORE_BASELINE = ">=2.0,<3.0"
+LEGACY_CORE_SAMPLES = ("1.0.0", "1.2.0", "1.3.0", "1.4.0", "1.99.0")
 IMAGE_DIGEST = re.compile(r"@sha256:[0-9a-f]{64}$")
 SOURCE_DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 
@@ -210,12 +212,63 @@ def canonical_json(value: Any) -> bytes:
     return (json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
 
 
+def core_compatibility(value: Any, target_version: str | None = None) -> tuple[list[str], list[str]]:
+    """``(errors, warnings)`` of ``app.requires_core`` against the Core 2.x baseline.
+
+    New apps declare CORE_BASELINE. A range that excludes Core 2.x or still admits 1.x is a
+    warning that asks for an upgrade proposal; it becomes an error only against a target Core
+    whose version the range excludes. See references/contracts.md.
+    """
+    try:
+        from packaging.specifiers import InvalidSpecifier, SpecifierSet
+        from packaging.version import InvalidVersion, Version
+    except ImportError as exc:
+        raise RuntimeError("packaging is required; install scripts/requirements.txt") from exc
+
+    app = value.get("app") if isinstance(value, dict) else None
+    if not isinstance(app, dict):
+        return [], []
+    constraint = app.get("requires_core")
+    if not isinstance(constraint, str) or not constraint.strip():
+        return [], [f'app.requires_core is missing; new apps declare "{CORE_BASELINE}"']
+    try:
+        required = SpecifierSet(constraint)
+    except InvalidSpecifier:
+        return ["app.requires_core must be a valid PEP 440 version constraint"], []
+
+    upgrade = (
+        f'propose to the user an app update to requires_core "{CORE_BASELINE}" '
+        "(new app version, checks repeated on Core 2.x)"
+    )
+    errors: list[str] = []
+    warnings: list[str] = []
+    if not required.contains(Version("2.0.0"), prereleases=True):
+        warnings.append(f'app.requires_core "{constraint}" excludes Core 2.x: {upgrade}')
+    elif any(required.contains(Version(sample), prereleases=True) for sample in LEGACY_CORE_SAMPLES):
+        warnings.append(
+            f'app.requires_core "{constraint}" still admits Core 1.x; new apps start at "{CORE_BASELINE}". '
+            "Keep 1.x only for a verified legacy release"
+        )
+    if target_version is not None:
+        try:
+            target = Version(target_version)
+        except InvalidVersion:
+            errors.append("the target Core does not report a version that a requires_core range can match")
+        else:
+            if not required.contains(target, prereleases=True):
+                hint = upgrade if target.major == 2 else "choose a target Core this app supports"
+                errors.append(
+                    f'the target runs Core {target_version}, which app.requires_core "{constraint}" excludes: {hint}'
+                )
+    return errors, warnings
+
+
 def manifest_warnings(value: Any) -> list[str]:
     """Non-blocking findings for patterns that pass the schema but fail on real clusters.
 
     See references/runtime-readiness.md. These never make validation fail.
     """
-    warnings: list[str] = []
+    warnings: list[str] = core_compatibility(value)[1] if isinstance(value, dict) else []
     if not isinstance(value, dict) or not isinstance(value.get("components"), list):
         return warnings
     components = [item for item in value["components"] if isinstance(item, dict)]

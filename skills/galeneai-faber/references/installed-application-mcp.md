@@ -11,7 +11,7 @@ qualification uses Docker Compose; no Kubernetes qualification is claimed.
 
 ## Register the destination
 
-Keep manifest `schema_version: "1.0"` and choose `app.requires_core` for the verified target release as described in [contracts](contracts.md); the historical `">=1.3,<2.0"` range is limited to legacy Core 1.x.
+Keep manifest `schema_version: "1.0"` and choose `app.requires_core` for the verified target release as described in [contracts](contracts.md); new apps use `">=2.0,<3.0"` and the historical `">=1.3,<2.0"` range is limited to legacy Core 1.x.
 An optional `internal_endpoints` entry has exactly these fields:
 
 ```json

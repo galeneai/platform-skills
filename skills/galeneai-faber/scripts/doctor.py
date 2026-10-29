@@ -10,6 +10,7 @@ from pathlib import Path
 from _support import (
     MANIFEST_SCHEMA,
     PROJECT_SCHEMA,
+    core_compatibility,
     load_json,
     validate_manifest,
     validate_project_context,
@@ -57,12 +58,21 @@ def doctor(project: Path) -> list[str]:
     return issues
 
 
+def compatibility_warnings(project: Path) -> list[str]:
+    try:
+        return core_compatibility(load_json(project / "galene-app.json"))[1]
+    except (ValueError, RuntimeError):
+        return []
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", type=Path, default=Path.cwd(), help="app project directory")
     args = parser.parse_args()
 
     issues = doctor(args.project.resolve())
+    for warning in compatibility_warnings(args.project.resolve()):
+        print(f"WARN: {warning}", file=sys.stderr)
     if issues:
         for issue in issues:
             print(f"ERROR: {issue}", file=sys.stderr)

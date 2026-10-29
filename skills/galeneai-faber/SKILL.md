@@ -2,7 +2,7 @@
 name: galeneai-faber
 description: Build standalone apps for Galene tenants from discovery and an approved blueprint through release and tenant installation. Use for tenant application projects, not for implementing Galene platform internals.
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Galene.AI Faber
@@ -21,6 +21,12 @@ For every new app, establish these two choices during discovery:
 2. The image registry: an owner-managed external OCI registry, or Galene's integrated registry.
 
 Do not infer either from credentials, an existing workspace, or an earlier app. Record the choices in the project context without storing registry credentials.
+
+## Core compatibility baseline
+
+Every new app starts with `app.requires_core: ">=2.0,<3.0"`: it targets Galene Core 2.x and never Core 1.x. Narrow the range only when a verified feature needs a later 2.x release.
+
+When you work on an existing app whose range excludes Core 2.x (for example the legacy `">=1.2,<2.0"` or `">=1.3,<2.0"`), or still admits 1.x, and the target platform runs Core 2.x, propose the upgrade to the user before any other change: a new app version with `requires_core: ">=2.0,<3.0"`, the app's checks repeated on Core 2.x, and a release with notes. Do not edit a published version in place and do not widen the range silently. `doctor.py` and `validate.py` print the proposal as a `WARN:`; `validate.py --target-url` fails when the target's Core version is outside the range. See [contracts](references/contracts.md#core-compatibility).
 
 ## Workflow
 

@@ -12,7 +12,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from _support import load_json, manifest_warnings, validate_manifest
+import install
+from _support import core_compatibility, load_json, manifest_warnings, validate_manifest
 from http_client import open_no_redirect
 from install import _validated_base_url, verify_service_target
 
@@ -78,7 +79,9 @@ def main() -> int:
     )
     parser.add_argument("--server-url", help="opt in to the committed Core server validator")
     parser.add_argument(
-        "--target-url", help="verify public Core service contract before publication, including archive imports"
+        "--target-url",
+        help="verify the target's public Core version against app.requires_core and its service contract "
+        "before publication, including archive imports",
     )
     parser.add_argument("--version", help="app SemVer; required with --server-url")
     parser.add_argument("--package-slug", help="defaults to manifest app.slug")
@@ -99,10 +102,18 @@ def main() -> int:
 
     if args.target_url:
         try:
-            verify_service_target(args.target_url, manifest)
+            document = install.request_json(_validated_base_url(args.target_url), "/openapi.json", "", "GET", None)
+            verify_service_target(args.target_url, manifest, api_request=lambda *_: document)
         except (ValueError, RuntimeError) as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             return 2
+        info = document.get("info") if isinstance(document, dict) else None
+        target_version = info.get("version") if isinstance(info, dict) else None
+        compatibility_errors = core_compatibility(manifest, str(target_version or ""))[0]
+        if compatibility_errors:
+            for error in compatibility_errors:
+                print(f"ERROR: {error}", file=sys.stderr)
+            return 1
 
     for warning in manifest_warnings(manifest):
         print(f"WARN: {warning}", file=sys.stderr)

@@ -3,7 +3,7 @@
   "app": {
     "slug": "team-notes",
     "name": "Team Notes",
-    "requires_core": ">=1.3,<2.0"
+    "requires_core": ">=2.0,<3.0"
   },
   "components": [
     {

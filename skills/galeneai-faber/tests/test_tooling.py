@@ -21,7 +21,7 @@ SCRIPTS = SKILL_ROOT / "scripts"
 EXAMPLES = SKILL_ROOT / "references" / "contracts" / "examples"
 sys.path.insert(0, str(SCRIPTS))
 
-from _support import load_json, manifest_warnings, validate_manifest  # noqa: E402
+from _support import CORE_BASELINE, core_compatibility, load_json, manifest_warnings, validate_manifest  # noqa: E402
 from doctor import doctor as run_doctor  # noqa: E402
 from http_client import NoRedirectHandler, open_no_redirect  # noqa: E402
 from install import (  # noqa: E402
@@ -706,7 +706,7 @@ class SkillToolingTests(unittest.TestCase):
 
 class ManifestWarningsTests(unittest.TestCase):
     def manifest(self, **component):
-        return {"components": [
+        return {"app": {"requires_core": CORE_BASELINE}, "components": [
             {"name": "web", "connectivity": {"depends_on": ["api"]}, **component},
             {"name": "api"},
         ]}
@@ -735,6 +735,71 @@ class ManifestWarningsTests(unittest.TestCase):
     def test_garbage_is_ignored(self):
         self.assertEqual(manifest_warnings(None), [])
         self.assertEqual(manifest_warnings({"components": "x"}), [])
+
+
+class CoreCompatibilityTests(unittest.TestCase):
+    def manifest(self, requires_core=None):
+        app = {"slug": "team-notes"}
+        if requires_core is not None:
+            app["requires_core"] = requires_core
+        return {"app": app}
+
+    def test_examples_start_at_the_core_2_baseline(self):
+        for name in ("team-notes-manifest.json", "multi-component-archive-import-manifest.json"):
+            with self.subTest(name=name):
+                manifest = load_json(EXAMPLES / name)
+                self.assertEqual(manifest["app"]["requires_core"], CORE_BASELINE)
+                self.assertEqual(core_compatibility(manifest), ([], []))
+
+    def test_missing_range_asks_for_the_baseline(self):
+        errors, warnings = core_compatibility(self.manifest())
+        self.assertEqual(errors, [])
+        self.assertTrue(any(CORE_BASELINE in item for item in warnings))
+
+    def test_legacy_ranges_propose_the_upgrade(self):
+        for constraint in (">=1.2,<2.0", ">=1.3,<2.0", "==1.4.0"):
+            with self.subTest(constraint=constraint):
+                errors, warnings = core_compatibility(self.manifest(constraint))
+                self.assertEqual(errors, [])
+                self.assertEqual(len(warnings), 1)
+                self.assertIn("excludes Core 2.x", warnings[0])
+                self.assertIn("propose", warnings[0])
+        errors, warnings = core_compatibility(self.manifest(">=1.2,<3.0"))
+        self.assertEqual(errors, [])
+        self.assertIn("still admits Core 1.x", warnings[0])
+
+    def test_target_core_2_rejects_a_legacy_range_with_the_upgrade_proposal(self):
+        for target in ("2.0.0", "2.1.0-rc.2"):
+            with self.subTest(target=target):
+                errors, _ = core_compatibility(self.manifest(">=1.2,<2.0"), target)
+                self.assertEqual(len(errors), 1)
+                self.assertIn(f"Core {target}", errors[0])
+                self.assertIn("propose", errors[0])
+                self.assertEqual(core_compatibility(self.manifest(CORE_BASELINE), target), ([], []))
+
+    def test_target_outside_major_2_or_without_version_is_reported(self):
+        self.assertIn("choose a target Core", core_compatibility(self.manifest(CORE_BASELINE), "1.4.0")[0][0])
+        self.assertIn("does not report a version", core_compatibility(self.manifest(CORE_BASELINE), "unknown")[0][0])
+        self.assertEqual(len(core_compatibility(self.manifest(CORE_BASELINE), "0.0.0+dev")[0]), 1)
+        self.assertEqual(core_compatibility(self.manifest("not a range"))[0],
+                         ["app.requires_core must be a valid PEP 440 version constraint"])
+
+    def test_validate_target_url_blocks_a_legacy_range_on_core_2(self):
+        manifest = load_json(EXAMPLES / "team-notes-manifest.json")
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "galene-app.json"
+            for constraint, expected in ((">=1.3,<2.0", 1), (CORE_BASELINE, 0)):
+                manifest["app"]["requires_core"] = constraint
+                path.write_text(json.dumps(manifest))
+                stderr = io.StringIO()
+                with self.subTest(constraint=constraint), \
+                     patch("sys.argv", ["validate.py", str(path), "--target-url", "https://core.example"]), \
+                     patch("install.request_json", return_value={"openapi": "3.1.0", "info": {"version": "2.0.0"}}) as target, \
+                     patch("sys.stdout", new_callable=io.StringIO), patch("sys.stderr", stderr):
+                    self.assertEqual(VALIDATE.main(), expected)
+                target.assert_called_once_with("https://core.example", "/openapi.json", "", "GET", None)
+                if expected:
+                    self.assertIn("propose", stderr.getvalue())
 
 if __name__ == "__main__":
     unittest.main()
